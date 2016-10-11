@@ -39,43 +39,103 @@ class OpticalSystem:
         The elements component of the class contains the information needed to build the
         RayMatrix object.  It consists of a list of tuples where each tuple contains three
         elements:
-          elements[0]: string specifying type of element
-          elements[1]: tuple containing the parameters required to describe the element
-          elements[2]: position of each element along the optical axis
-          elements[3]: string label for each element
+          elements[0][0]: string specifying type of element
+          elements[0][1]: tuple containing the parameters required to describe the element
+          elements[0][2]: position of each element along the optical axis
+          elements[0][3]: string label for each element
+
+        The beams component of the class contains a list of tuples.  Each tuple contains three
+        entries:
+          beams[0][0]: q_parameter.qParameter object specifying beam
+          beams[0][1]: location of beam along the optical axis
+          beams[0][2]: string label for each beam
 
         :return: An instance of the OpticalSystem class
         :rtype: OpticalSystem
         """
-        # Initialize RayMatrix and qParameter elements to None
+        # Initialize RayMatrix to None
         self.rm = None
-        self.qp = None
-        self.qz = None
+        # Initialize the beams component to an empty list
+        self.beams = []
         # Initialize the elements list
         self.elements = []
 
     ###############################################################################################
-    # Internal get/set methods
+    # Internal get/set/add/remove methods
     ###############################################################################################
-    def _set_qp(self, qp):
-        """ Sets the qParameter object
+    def _get_beam(self, label):
+        """ Returns the beam specified by label
 
-        :param qp: A qParameter object describing the beam
-        :type qp: q_param.QParameter
-        """
-        if type(qp) is not q_param.qParameter:
-            raise TypeError('qp should be a qParameter object')
-        self.qp = qp
+        label should be the string specifying the beam, but an integer index is also accepted
+        (though discouraged).
 
-    def _get_qp(self):
-        """ Returns the internal qParameter object
-
+        :param label: The string label associated with the beam (an index is also accepted)
+        :type label: str or int
         :return: The internal qParameter object
         :rtype: q_param.qParameter
         """
-        if self.qp is None:
-            raise LookupError('qp is not yet defined')
-        return self.qp
+        # Check if any beams are defined
+        if not self.beams:
+            raise LookupError('no beams defined yet')
+        # Get labels
+        labels = [bm[2] for bm in self.beams]
+        # Try by index if label is integer
+        if type(label) is int:
+            try:
+                beam = self.beams[label]
+            except:
+                warnings.warn('Unable to lookup beam by index, trying by label')
+                label = str(label)
+                if label not in labels:
+                    raise ValueError('label does not specify a beam')
+                else:
+                    beam = self.beams[labels.index(label)]
+        # Otherwise search by label
+        else:
+            # If label is any other type, convert it to str
+            if type(label) is not str:
+                try:
+                    label = str(label)
+                except:
+                    raise TypeError('label should be a string')
+            if label not in labels:
+                raise ValueError('label does not specify a beam')
+            else:
+                beam = self.beams[labels.index(label)]
+        # Return beam
+        return beam
+
+    def _add_beam(self, beam):
+        """ Adds a beam to the beams attribute
+
+        :param beam: (qParameter object describing the beam, position of the beam along the axis)
+        :type beam: (q_param.qParameter, float, str)
+        """
+        # Check types
+        if type(beam) is not tuple:
+            try:
+                beam = tuple(beam)
+            except:
+                raise TypeError('beam should be a tuple with a qParameter and a float')
+        if not len(beam) == 3:
+            raise ValueError('beam should be a three-element tuple')
+        if type(beam[0]) is not q_param.qParameter:
+            raise TypeError('first element of beam should be of type qParameter')
+        if type(beam[1]) is not float:
+            try:
+                beam = (beam[0], float(beam[1]), beam[2])
+            except:
+                raise TypeError('second element of beam should be a float')
+        if type(beam[2]) is not str:
+            try:
+                beam = (beam[0], beam[1], str(beam[2]))
+            except:
+                raise TypeError('third element of beam should be a string')
+        # Check that label is not repeated
+        if beam[2] in (bm[2] for bm in self.beams):
+            raise ValueError('label is already used for another beam')
+        # Add beam to self.beams
+        self.beams.append(beam)
 
     def _set_rm(self, rm):
         """ Sets the internal RayMatrix object
@@ -107,9 +167,10 @@ class OpticalSystem:
         seen = set()
         if any(el[3] in seen or seen.add(el[3]) for el in elements):
             raise ValueError('multiple labels are identical')
-        # Sort elements by position
+        # Check that elements is a list
         if type(elements) is not list:
             raise TypeError('elements should be a list of tuples')
+        # Sort elements by position
         elements = sorted(elements, key=lambda x: x[2])
         self.elements = elements
         # Rebuild the ray matrix
@@ -267,8 +328,46 @@ class OpticalSystem:
         # Add the element to elements
         self._add_element(element)
 
+    ###############################################################################################
+    # Add and remove beams
+    ###############################################################################################
+    def add_beam(self, waist_size, distance_to_waist, wvlnt, location, label, q=None):
+        """ Adds a beam to the optical system instance
 
+        A beam in the OpticalSystem class contains the following pieces of information:
+          - q_param.qParameter object specifying beam
+          - location of beam along the optical axis
+          - string label for each beam
 
+        This method allows the user to add a beam with more real-world parameters, namely the
+        waist size and the distance to the waist.  Note that **all beam sizes are specified by the
+        1/e^2 radius**.  The location parameter specifies the location of the beam along the
+        optical axis, and the label parameter is a string label used to access the beam later on.
+
+        :param waist_size: 1/e^2 radius of beam
+        :param distance_to_waist: distance between waist and location at which beam is defined. A
+                                  negative number means the waist is farther along the opical axis
+        :param wvlnt: the wavelength of the light
+        :param location: position along optical axis at which beam is defined
+        :param label: a string label to access the beam later
+        :param q: the q parameter can be specified directly in which case waist_size,
+                  distance_to_waist, and wvlnt parameters are ignored
+        :type waist_size: float
+        :type distance_to_waist: float
+        :type wvlnt: float
+        :type location: float
+        :type label: str
+        :type q: q_param.qParameter or None
+        """
+        # Build qParameter if q is None
+        if q is not None:
+            if type(q) is not q_param.qParameter:
+                raise TypeError('q should be an instance of the qParameter class')
+        else:
+            q = q_param.qParameter(wvlnt=wvlnt)
+            q.set_q(beamsize=waist_size, position=distance_to_waist)
+        # Add beam
+        self._add_beam((q, location, label))
 
 
 
