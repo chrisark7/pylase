@@ -8,10 +8,9 @@ an optical system consisting of a number of optical elements and a Gaussian lase
 """
 
 import warnings
-import numpy as np
-import ray_matrix
-import q_param
 from difflib import SequenceMatcher
+import numpy as np
+from pylase import q_param, ray_matrix
 
 __author__ = "Chris Mueller"
 __email__ = "chrisark7@gmail.com"
