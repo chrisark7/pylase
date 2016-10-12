@@ -75,16 +75,16 @@ class qParameter(object):
         q = self.get_q()
         if abs(q.real) < 1e-10:
             real_str = '{0:6.3f}'.format(q.real)
-        elif np.log10(abs(q.real)) < -3:
-            real_str = '{0:4.3e}'.format(q.real)
-        else:
+        elif -3 < np.log10(abs(q.real)) < 3:
             real_str = '{0:6.3f}'.format(q.real)
+        else:
+            real_str = '{0:4.3e}'.format(q.real)
         if abs(q.imag) < 1e-10:
             imag_str = '{0:6.3f}'.format(q.imag)
-        elif np.log10(abs(q.imag)) < -3:
-            imag_str = '{0:4.3e}'.format(q.imag)
-        else:
+        elif -3 < np.log10(abs(q.imag)) < 3:
             imag_str = '{0:6.3f}'.format(q.imag)
+        else:
+            imag_str = '{0:4.3e}'.format(q.imag)
         return '{0} + {1}i'.format(real_str, imag_str)
 
     def __repr__(self):
@@ -241,6 +241,54 @@ class qParameter(object):
             self.q = self.get_q() - q2.get_q()
         else:
             self.q = self.get_q() - q2
+        return self
+
+    def __truediv__(self, q2):
+        copy = self.copy()
+        if type(q2) is qParameter:
+            if not self.get_wvlnt() == q2.get_wvlnt():
+                warnings.warn('wvlnt of two qParameter instances is not equal')
+            copy.q = self.get_q() / q2.get_q()
+        else:
+            copy.q = self.get_q() / q2
+        return copy
+
+    def __rtruediv__(self, q2):
+        copy = self.copy()
+        copy.q = q2 / self.get_q()
+        return copy
+
+    def __itruediv__(self, q2):
+        if type(q2) is qParameter:
+            if not self.get_wvlnt() == q2.get_wvlnt():
+                warnings.warn('wvlnt of two qParameter instances is not equal')
+            self.q = self.get_q() / q2.get_q()
+        else:
+            self.q = self.get_q() / q2
+        return self
+
+    def __mul__(self, q2):
+        copy = self.copy()
+        if type(q2) is qParameter:
+            if not self.get_wvlnt() == q2.get_wvlnt():
+                warnings.warn('wvlnt of two qParameter instances is not equal')
+            copy.q = self.get_q() * q2.get_q()
+        else:
+            copy.q = self.get_q() * q2
+        return copy
+
+    def __rmul__(self, q2):
+        copy = self.copy()
+        copy.q = q2 * self.get_q()
+        return copy
+
+    def __imul__(self, q2):
+        if type(q2) is qParameter:
+            if not self.get_wvlnt() == q2.get_wvlnt():
+                warnings.warn('wvlnt of two qParameter instances is not equal')
+            self.q = self.get_q() * q2.get_q()
+        else:
+            self.q = self.get_q() * q2
         return self
 
     ###############################################################################################

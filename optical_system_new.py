@@ -55,10 +55,12 @@ class OpticalSystem:
         """
         # Initialize RayMatrix to None
         self.rm = None
-        # Initialize the beams component to an empty list
+        # Initialize the beams component to an empty list and initialize its hash
         self.beams = []
-        # Initialize the elements list
+        self._beam_hash = hash(tuple(self.beams))
+        # Initialize the elements list and the elements hash
         self.elements = []
+        self._el_hash = hash(tuple(self.elements))
         # Initialize a list for the q parameters
         self.all_qs = []
 
@@ -73,7 +75,7 @@ class OpticalSystem:
 
         :param beam_label: The string label associated with the beam (an index is also accepted)
         :type beam_label: str or int
-        :return: The internal beam definition: (qParameter, position, label)
+        :return: The internal beam definition: (qParameter, z, label)
         :rtype: (q_param.qParameter, float, str)
         """
         # Check if any beams are defined
@@ -138,8 +140,8 @@ class OpticalSystem:
             raise ValueError('label is already used for another beam')
         # Add beam to self.beams
         self.beams.append(beam)
-        # Recalculate qs
-        self._calculate_all_qs()
+        # Update
+        self._update()
 
     def _get_q(self, beam_label, pos_num):
         """ Returns the q parameter of the specified beam at the specified position
@@ -191,7 +193,7 @@ class OpticalSystem:
         except IndexError:
             raise ValueError('pos_num is out of range')
         # Return
-        return q_out
+        return (q_out[0].copy(), q_out[1])
 
     def _set_rm(self, rm):
         """ Sets the internal RayMatrix object
@@ -229,10 +231,8 @@ class OpticalSystem:
         # Sort elements by position
         elements = sorted(elements, key=lambda x: x[2])
         self.elements = elements
-        # Rebuild the ray matrix
-        self._build_raymatrix()
-        # Recalculate the q parameters
-        self._calculate_all_qs()
+        # Update
+        self._update()
 
     def _get_elements(self):
         """ Returns the elements parameter of the OpticalSystem instance
@@ -254,14 +254,45 @@ class OpticalSystem:
         # Append and sort elements by position
         self.elements.append(element)
         self.elements = sorted(self.elements, key=lambda x: x[2])
-        # Rebuild the ray matrix
-        self._build_raymatrix()
-        # Recalculate all of the q parameters
-        self._calculate_all_qs()
+        # Update
+        self._update()
+
+    def _remove_element(self, label):
+        """ Remove an element from the optical system
+
+        :param label: the string identifier for the element
+        :type label: str
+        """
+        # Find the index from the label
+        if type(label) is int:
+            try:
+                del self.elements[label]
+            except IndexError as exc:
+                raise ValueError('label is not a recognized element label') from exc
+        else:
+            labels = [el[3] for el in self.elements]
+            try:
+                ind = labels.index(label)
+                del self.elements[ind]
+            except ValueError as exc:
+                raise ValueError('label is not a recognized element label') from exc
+        # Update
+        self._update()
 
     ###############################################################################################
     # Internal System Building and Propagation Methods
     ###############################################################################################
+    def _update(self):
+        """ Checks the _beam_hash and _el_hash and updates rm and qll_qs if necessary
+        """
+        if not hash(tuple(self.elements)) == self._el_hash:
+            # Rebuild ray matrix and qs
+            self._build_raymatrix()
+            self._calculate_all_qs()
+        elif not hash(tuple(self.beams)) == self._beam_hash:
+            # Rebuild qs
+            self._calculate_all_qs()
+
     def _build_raymatrix(self):
         """
 
@@ -299,6 +330,8 @@ class OpticalSystem:
                 descriptor.append((el[0], el[1]))
         # Create RayMatrix object
         self._set_rm(ray_matrix.RayMatrix(descriptor=descriptor))
+        # Update hash
+        self._el_hash = hash(tuple(self.elements))
 
     def _calculate_all_qs(self):
         """ Calculates the q parameters for all beams at all points in the optical system
@@ -322,6 +355,8 @@ class OpticalSystem:
             all_qs.append(tuple(now_all_qs))
         # Assign
         self.all_qs = all_qs
+        # Update hash
+        self._beam_hash = hash(tuple(self.beams))
 
     def _prop_root(self, q, mat):
         """ Propagates a q parameter with an ABCD matrix
@@ -341,7 +376,7 @@ class OpticalSystem:
     ###############################################################################################
     # Add and Remove Optical Elements and Beams
     ###############################################################################################
-    def add_element(self, element_type, parameters, position, label):
+    def add_element(self, element_type, parameters, z, label):
         """ Adds an optical element to the system
 
         Possible element types and their parameters are:
@@ -358,11 +393,11 @@ class OpticalSystem:
 
         :param element_type: A string specifying one of the designated element types
         :param parameters: A tuple or float designating the parameters to describe the element
-        :param position: The position along the optical axis
+        :param z: The position along the optical axis
         :param label: A string identifier for the element
         :type element_type: str
-        :type parameters: tuple of float
-        :type position: float
+        :type parameters: tuple of float or float or None
+        :type z: float
         :type label: str
         """
         # Define the key
@@ -384,11 +419,11 @@ class OpticalSystem:
                 label = str(label)
             except:
                 raise TypeError('label should be a string')
-        if type(position) is not float:
+        if type(z) is not float:
             try:
-                position = float(position)
+                z = float(z)
             except:
-                raise TypeError('position should be a float')
+                raise TypeError('z should be a float')
         # If the key is used, replace it with the long form name
         if element_type in key:
             element_type = key[element_type]
@@ -419,14 +454,56 @@ class OpticalSystem:
                 getattr(ray_matrix.RayMatrix, element_type)(parameters[0])
             else:
                 getattr(ray_matrix.RayMatrix, element_type)(*parameters)
-            element = (element_type, parameters, position, label)
+            element = (element_type, parameters, z, label)
         except:
             print('parameters do not match up with element type')
             raise
         # Add the element to elements
         self._add_element(element)
 
-    def add_beam(self, waist_size, distance_to_waist, wvlnt, location, label, q=None):
+    def remove_element(self, label):
+        """ Removes an optical element from the system
+
+        :param label: The string label for the element or an integer index
+        :type label: str or int
+        """
+        # Parse label
+        if type(label) not in [str, int]:
+            try:
+                label = str(label)
+            except:
+                raise TypeError('label should be a string')
+        # Remove element
+        self._remove_element(label=label)
+
+    def add_lens(self, f, z, label):
+        """ Add a thin lens to the system with focal length f at position z
+
+        :param f: focal length
+        :param z: position along optical axis
+        :param label: string label to identify the element
+        :type f: float
+        :type z: float
+        :type label: str
+        """
+        self.add_element('lens_thin', (f,), z, label)
+
+    def add_curved_mirror(self, roc, z, label):
+        """ Add a curved mirror to the system with radius of curvature roc at position z
+
+        :param roc: radius of curvature of mirror
+        :param z: position along optical axis
+        :param label: string label to identify the element
+        :type roc: float
+        :type z: float
+        :type label: str
+        """
+        self.add_element('mirror_curved', (roc,), z, label)
+
+    ###############################################################################################
+    # Add and Remove  Beams
+    ###############################################################################################
+    def add_beam(self, waist_size, distance_to_waist, wvlnt, z, label, q=None):
         """ Adds a beam to the optical system instance
 
         A beam in the OpticalSystem class contains the following pieces of information:
@@ -436,21 +513,21 @@ class OpticalSystem:
 
         This method allows the user to add a beam with more real-world parameters, namely the
         waist size and the distance to the waist.  Note that **all beam sizes are specified by the
-        1/e^2 radius**.  The location parameter specifies the location of the beam along the
+        1/e^2 radius**.  The z parameter specifies the location of the beam along the
         optical axis, and the label parameter is a string label used to access the beam later on.
 
         :param waist_size: 1/e^2 radius of beam
         :param distance_to_waist: distance between waist and location at which beam is defined. A
                                   negative number means the waist is farther along the opical axis
         :param wvlnt: the wavelength of the light
-        :param location: position along optical axis at which beam is defined
+        :param z: position along optical axis at which beam is defined
         :param label: a string label to access the beam later
         :param q: the q parameter can be specified directly in which case waist_size,
                   distance_to_waist, and wvlnt parameters are ignored
         :type waist_size: float
         :type distance_to_waist: float
         :type wvlnt: float
-        :type location: float
+        :type z: float
         :type label: str
         :type q: q_param.qParameter or None
         """
@@ -462,28 +539,47 @@ class OpticalSystem:
             q = q_param.qParameter(wvlnt=wvlnt)
             q.set_q(beamsize=waist_size, position=distance_to_waist)
         # Add beam
-        self._add_beam((q, location, label))
+        self._add_beam((q, z, label))
 
     ###############################################################################################
     # Calculations
     ###############################################################################################
-    def get_q(self, beam_label, position):
+    def get_q(self, beam_label, z):
         """ Returns the q parameter at the specified position within the optical system
 
-        :param position: a position along the optical axis
+        :param z: a position along the optical axis
         :param beam_label: the label or index of the beam
-        :type position: float
+        :type z: float
         :type beam_label: str or float
         :return: (q parameter, index of refraction)
         :rtype: (q_param.qParameter, float)
         """
         # Get the pos_num and distance to the position
-        pos_num, dist = self.rm.get_el_num_from_position(position)
+        pos_num, dist = self.rm.get_el_num_from_position(z)
         # Get the q parameter
         q_out = self._get_q(beam_label, pos_num)
         # Add the extra distance
         q_out = (q_out[0] + dist, q_out[1])
         return q_out
+
+    def w(self, beam_label, z):
+        """ Returns the beam size w for the specified beam at the specified position
+
+        :param beam_label: the label or index of the beam
+        :param z: the position along the optical axis
+        :type beam_label: str or int
+        :type z: float
+        :return: 1/e^2 beam radius at the position specified
+        :rtype: float
+        """
+        # Get the q parameter and ior at the specified location
+        q, ior = self.get_q(beam_label=beam_label, z=z)
+        # Scale q by the index of refraction
+        q /= ior
+        # Return
+        return q.w(m2=1)
+
+
 
 
 
