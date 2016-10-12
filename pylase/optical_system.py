@@ -10,6 +10,8 @@ an optical system consisting of a number of optical elements and a Gaussian lase
 import warnings
 from difflib import SequenceMatcher
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 from pylase import q_param, ray_matrix
 
 __author__ = "Chris Mueller"
@@ -502,7 +504,7 @@ class OpticalSystem:
     ###############################################################################################
     # Add and Remove  Beams
     ###############################################################################################
-    def add_beam(self, waist_size, distance_to_waist, wvlnt, z, label, q=None):
+    def add_beam(self, waist_size, distance_to_waist, wvlnt, z, beam_label, q=None):
         """ Adds a beam to the optical system instance
 
         A beam in the OpticalSystem class contains the following pieces of information:
@@ -520,14 +522,14 @@ class OpticalSystem:
                                   negative number means the waist is farther along the opical axis
         :param wvlnt: the wavelength of the light
         :param z: position along optical axis at which beam is defined
-        :param label: a string label to access the beam later
+        :param beam_label: a string label to access the beam later
         :param q: the q parameter can be specified directly in which case waist_size,
                   distance_to_waist, and wvlnt parameters are ignored
         :type waist_size: float
         :type distance_to_waist: float
         :type wvlnt: float
         :type z: float
-        :type label: str
+        :type beam_label: str
         :type q: q_param.qParameter or None
         """
         # Build qParameter if q is None
@@ -538,7 +540,7 @@ class OpticalSystem:
             q = q_param.qParameter(wvlnt=wvlnt)
             q.set_q(beamsize=waist_size, position=distance_to_waist)
         # Add beam
-        self._add_beam((q, z, label))
+        self._add_beam((q, z, beam_label))
 
     ###############################################################################################
     # Calculations
@@ -578,18 +580,46 @@ class OpticalSystem:
         # Return
         return q.w(m2=1)
 
+    ###############################################################################################
+    # Graphics
+    ###############################################################################################
+    def plot_w(self, zs, fig_num=None):
+        """ Plots the beam size for all beams at the points given in `zs`
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        :param zs: the positions along the optical axis at which to plot the beams size
+        :param fig_num: the figure number to use (next available if None)
+        :type zs: list or np.ndarray
+        :type fig_num: int or None
+        :return:
+        """
+        # Get beam sizes
+        beam_labels = [beam[2] for beam in self.beams]
+        ws = {}
+        for beam_label in beam_labels:
+            ws[beam_label] = [self.w(beam_label=beam_label, z=z) for z in zs]
+        # Calculate units
+        mx = max((max(ws[key]) for key in ws))
+        scale, unit = 1, 'm'
+        if np.log10(mx) < -4:
+            scale, unit = 1e6, 'um'
+        elif np.log10(mx) < -1:
+            scale, unit = 1e3, 'mm'
+        # Initialize figure
+        fig = plt.figure(num=fig_num, figsize=[11, 7])
+        # Grid
+        grd0 = GridSpec(1, 1)
+        grd0.update(left=0.1, right=0.90, bottom=0.1, top=0.93, hspace=0.30, wspace=0.28)
+        # Initialize axes
+        ax0 = fig.add_subplot(grd0[:, :])
+        # Plot
+        for beam_label in beam_labels:
+            ln = ax0.plot(zs, [scale*w for w in ws[beam_label]], lw=2, label=beam_label)
+            ax0.hold(True)
+            ax0.plot(zs, [-1*scale*w for w in ws[beam_label]], lw=2, color=ln[0].get_color())
+        ax0.hold(False)
+        ax0.grid(True)
+        ax0.set_xlabel('Position [m]')
+        ax0.set_ylabel('Beam Radius [{0}]'.format(unit))
+        ax0.legend(loc='best', fontsize=12)
+        # Return
+        return fig, ax0
