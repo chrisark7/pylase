@@ -274,6 +274,22 @@ class RayMatrix(object):
             raise TypeError('pos_range is improperly specified')
         return d
 
+    def get_distance_to_nearest_pos_num(self, z):
+        """ Returns the distance to the nearest pos_num given an arbitrary location in the system
+
+        :param z: position along the optical axis
+        :type z: float
+        :return: (pos_num, distance)
+        :rtype: (int, float)
+        """
+        # Calculate position of all optical elements
+        positions = []
+        for jj in range(len(self.sys)):
+            positions.append([jj, self.get_distance(pos_range=[0, jj]) - z])
+        # Find the closest index
+        min_val = min(positions, key=lambda x: abs(x[1]))
+        return min_val
+
     def get_el_num_from_position(self, z, start_pos_num=0):
         """ Returns the pos_num and forward distance to a given position from the start position.
 

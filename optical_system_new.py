@@ -59,56 +59,58 @@ class OpticalSystem:
         self.beams = []
         # Initialize the elements list
         self.elements = []
+        # Initialize a list for the q parameters
+        self.all_qs = []
 
     ###############################################################################################
     # Internal get/set/add/remove methods
     ###############################################################################################
-    def _get_beam(self, label):
-        """ Returns the beam specified by label
+    def _get_beam(self, beam_label):
+        """ Returns the beam specified by beam_label
 
-        label should be the string specifying the beam, but an integer index is also accepted
+        beam_label should be the string specifying the beam, but an integer index is also accepted
         (though discouraged).
 
-        :param label: The string label associated with the beam (an index is also accepted)
-        :type label: str or int
-        :return: The internal qParameter object
-        :rtype: q_param.qParameter
+        :param beam_label: The string label associated with the beam (an index is also accepted)
+        :type beam_label: str or int
+        :return: The internal beam definition: (qParameter, position, label)
+        :rtype: (q_param.qParameter, float, str)
         """
         # Check if any beams are defined
         if not self.beams:
             raise LookupError('no beams defined yet')
         # Get labels
         labels = [bm[2] for bm in self.beams]
-        # Try by index if label is integer
-        if type(label) is int:
+        # Try by index if beam_label is integer
+        if type(beam_label) is int:
             try:
-                beam = self.beams[label]
-            except:
-                warnings.warn('Unable to lookup beam by index, trying by label')
-                label = str(label)
-                if label not in labels:
-                    raise ValueError('label does not specify a beam')
+                beam = self.beams[beam_label]
+            except IndexError:
+                warnings.warn('Unable to lookup beam by index, trying by beam_label')
+                beam_label = str(beam_label)
+                if beam_label not in labels:
+                    raise ValueError('beam_label does not specify a beam')
                 else:
-                    beam = self.beams[labels.index(label)]
-        # Otherwise search by label
+                    beam = self.beams[labels.index(beam_label)]
+        # Otherwise search by beam_label
         else:
-            # If label is any other type, convert it to str
-            if type(label) is not str:
+            # If beam_label is any other type, convert it to str
+            if type(beam_label) is not str:
                 try:
-                    label = str(label)
+                    beam_label = str(beam_label)
                 except:
-                    raise TypeError('label should be a string')
-            if label not in labels:
-                raise ValueError('label does not specify a beam')
+                    raise TypeError('beam_label should be a string')
+            if beam_label not in labels:
+                raise ValueError('beam_label does not specify a beam')
             else:
-                beam = self.beams[labels.index(label)]
+                beam = self.beams[labels.index(beam_label)]
         # Return beam
         return beam
 
     def _add_beam(self, beam):
         """ Adds a beam to the beams attribute
 
-        :param beam: (qParameter object describing the beam, position of the beam along the axis)
+        :param beam: (qParameter object describing the beam, position of the beam along the axis, label)
         :type beam: (q_param.qParameter, float, str)
         """
         # Check types
@@ -136,6 +138,60 @@ class OpticalSystem:
             raise ValueError('label is already used for another beam')
         # Add beam to self.beams
         self.beams.append(beam)
+        # Recalculate qs
+        self._calculate_all_qs()
+
+    def _get_q(self, beam_label, pos_num):
+        """ Returns the q parameter of the specified beam at the specified position
+
+        :param beam_label: The string label associated with the beam (an index is also accepted)
+        :param pos_num:
+        :type beam_label: str or int
+        :type pos_num: int
+        :return: (q parameter, index of refraction)
+        :rtype: (q_param.qParameter, float)
+        """
+        # Check if any beams are defined
+        if not self.beams:
+            raise LookupError('no beams defined yet')
+        # Get labels
+        labels = [bm[2] for bm in self.beams]
+        # Try by index if beam_label is integer
+        if type(beam_label) is int:
+            try:
+                all_qs = self.all_qs[beam_label]
+            except IndexError:
+                warnings.warn('Unable to lookup beam by index, trying by beam_label')
+                beam_label = str(beam_label)
+                if beam_label not in labels:
+                    raise ValueError('beam_label does not specify a beam')
+                else:
+                    all_qs = self.all_qs[labels.index(beam_label)]
+        # Otherwise search by beam_label
+        else:
+            # If beam_label is any other type, convert it to str
+            if type(beam_label) is not str:
+                try:
+                    beam_label = str(beam_label)
+                except:
+                    raise TypeError('beam_label should be a string')
+            if beam_label not in labels:
+                raise ValueError('beam_label does not specify a beam')
+            else:
+                all_qs = self.all_qs[labels.index(beam_label)]
+        # If pos num is not an int, try to convert it
+        if type(pos_num) is not int:
+            try:
+                pos_num = int(pos_num)
+            except ValueError:
+                raise TypeError('pos_num should be an integer')
+        # Try to lookup the q parameter
+        try:
+            q_out = all_qs[pos_num]
+        except IndexError:
+            raise ValueError('pos_num is out of range')
+        # Return
+        return q_out
 
     def _set_rm(self, rm):
         """ Sets the internal RayMatrix object
@@ -175,6 +231,8 @@ class OpticalSystem:
         self.elements = elements
         # Rebuild the ray matrix
         self._build_raymatrix()
+        # Recalculate the q parameters
+        self._calculate_all_qs()
 
     def _get_elements(self):
         """ Returns the elements parameter of the OpticalSystem instance
@@ -198,9 +256,11 @@ class OpticalSystem:
         self.elements = sorted(self.elements, key=lambda x: x[2])
         # Rebuild the ray matrix
         self._build_raymatrix()
+        # Recalculate all of the q parameters
+        self._calculate_all_qs()
 
     ###############################################################################################
-    # Internal System Building Methods
+    # Internal System Building and Propagation Methods
     ###############################################################################################
     def _build_raymatrix(self):
         """
@@ -240,8 +300,46 @@ class OpticalSystem:
         # Create RayMatrix object
         self._set_rm(ray_matrix.RayMatrix(descriptor=descriptor))
 
+    def _calculate_all_qs(self):
+        """ Calculates the q parameters for all beams at all points in the optical system
+        """
+        all_qs = []
+        for beam in self.beams:
+            # Propagate q to nearest pos_num
+            now_ind, now_dist = self.rm.get_distance_to_nearest_pos_num(beam[1])
+            now_q = beam[0] + now_dist
+            now_all_qs = []
+            for jj in range(len(self.rm.sys)+1):
+                ior = self.rm.get_index_of_refraction(jj)
+                if jj < now_ind:
+                    mat = self.rm.get_matrix_backward(el_range=[jj, now_ind])
+                    now_all_qs.append((self._prop_root(now_q, mat), ior))
+                elif jj == now_ind:
+                    now_all_qs.append((now_q, ior))
+                else:
+                    mat = self.rm.get_matrix_forward(el_range=[now_ind, jj])
+                    now_all_qs.append((self._prop_root(now_q, mat), ior))
+            all_qs.append(tuple(now_all_qs))
+        # Assign
+        self.all_qs = all_qs
+
+    def _prop_root(self, q, mat):
+        """ Propagates a q parameter with an ABCD matrix
+
+        :param q: q parameter
+        :param mat: abcd matrix
+        :type q: q_param.qParameter
+        :type mat: np.matrix
+        :return: new q parameter
+        :rtype: q_param.qParameter
+        """
+        q_old = q.get_q()
+        q_new = (mat[0, 0] * q_old + mat[0, 1])/(mat[1, 0] * q_old + mat[1, 1])
+        q_new = q_param.qParameter(q=q_new, wvlnt=q.get_wvlnt())
+        return q_new
+
     ###############################################################################################
-    # Add and remove elements
+    # Add and Remove Optical Elements and Beams
     ###############################################################################################
     def add_element(self, element_type, parameters, position, label):
         """ Adds an optical element to the system
@@ -328,9 +426,6 @@ class OpticalSystem:
         # Add the element to elements
         self._add_element(element)
 
-    ###############################################################################################
-    # Add and remove beams
-    ###############################################################################################
     def add_beam(self, waist_size, distance_to_waist, wvlnt, location, label, q=None):
         """ Adds a beam to the optical system instance
 
@@ -368,6 +463,28 @@ class OpticalSystem:
             q.set_q(beamsize=waist_size, position=distance_to_waist)
         # Add beam
         self._add_beam((q, location, label))
+
+    ###############################################################################################
+    # Calculations
+    ###############################################################################################
+    def get_q(self, beam_label, position):
+        """ Returns the q parameter at the specified position within the optical system
+
+        :param position: a position along the optical axis
+        :param beam_label: the label or index of the beam
+        :type position: float
+        :type beam_label: str or float
+        :return: (q parameter, index of refraction)
+        :rtype: (q_param.qParameter, float)
+        """
+        # Get the pos_num and distance to the position
+        pos_num, dist = self.rm.get_el_num_from_position(position)
+        # Get the q parameter
+        q_out = self._get_q(beam_label, pos_num)
+        # Add the extra distance
+        q_out = (q_out[0] + dist, q_out[1])
+        return q_out
+
 
 
 
