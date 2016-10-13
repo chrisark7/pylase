@@ -583,22 +583,41 @@ class OpticalSystem:
     ###############################################################################################
     # Graphics
     ###############################################################################################
-    def plot_w(self, zs, fig_num=None):
+    def plot_w(self, zs, fig_num=None, other_sys=None):
         """ Plots the beam size for all beams at the points given in `zs`
 
         :param zs: the positions along the optical axis at which to plot the beams size
         :param fig_num: the figure number to use (next available if None)
+        :param other_sys: another optical system or a list of other optical systems
         :type zs: list or np.ndarray
         :type fig_num: int or None
+        :type other_sys: OpticalSystem or list of OpticalSystem
         :return:
         """
         # Get beam sizes
-        beam_labels = [beam[2] for beam in self.beams]
-        ws = {}
-        for beam_label in beam_labels:
-            ws[beam_label] = [self.w(beam_label=beam_label, z=z) for z in zs]
+        beam_labels = {self: [beam[2] for beam in self.beams]}
+        ws = {self: {}}
+        elements = {self: self.elements}
+        for beam_label in beam_labels[self]:
+            ws[self][beam_label] = [self.w(beam_label=beam_label, z=z) for z in zs]
+        # Check for other sys
+        if other_sys:
+            if type(other_sys) is OpticalSystem:
+                beam_labels[other_sys] = [beam[2] for beam in other_sys.beams]
+                elements[other_sys] = other_sys.elements
+                for beam_label in beam_labels[other_sys]:
+                    ws[other_sys][beam_label] = [other_sys.w(beam_label=beam_label, z=z) for z in zs]
+            else:
+                try:
+                    for sys in other_sys:
+                        beam_labels[sys] = [beam[2] for beam in sys.beams]
+                        elements[sys] = sys.elements
+                        for beam_label in beam_labels[sys]:
+                            ws[sys][beam_label] = [sys.w(beam_label=beam_label, z=z) for z in zs]
+                except:
+                    raise TypeError('other_sys should be an OpticalSystem instance or a list of OpticalSystem instances')
         # Calculate units
-        mx = max((max(ws[key]) for key in ws))
+        mx = max((max(max(ws[key][key2]) for key2 in ws[key]) for key in ws))
         scale, unit = 1, 'm'
         if np.log10(mx) < -4:
             scale, unit = 1e6, 'um'
@@ -611,15 +630,28 @@ class OpticalSystem:
         grd0.update(left=0.1, right=0.90, bottom=0.1, top=0.93, hspace=0.30, wspace=0.28)
         # Initialize axes
         ax0 = fig.add_subplot(grd0[:, :])
+        xlims = [np.min(zs), np.max(zs)]
         # Plot
-        for beam_label in beam_labels:
-            ln = ax0.plot(zs, [scale*w for w in ws[beam_label]], lw=2, label=beam_label)
-            ax0.hold(True)
-            ax0.plot(zs, [-1*scale*w for w in ws[beam_label]], lw=2, color=ln[0].get_color())
-        ax0.hold(False)
+        for key in beam_labels:
+            for beam_label in beam_labels[key]:
+                ln = ax0.plot(zs, [scale*w for w in ws[key][beam_label]], lw=2, label=beam_label)
+                ax0.hold(True)
+                ax0.plot(zs, [-1*scale*w for w in ws[key][beam_label]], lw=2, color=ln[0].get_color())
         ax0.grid(True)
         ax0.set_xlabel('Position [m]')
         ax0.set_ylabel('Beam Radius [{0}]'.format(unit))
+        ax0.set_xlim(xlims)
         ax0.legend(loc='best', fontsize=12)
+        # Get scales for
+        ylims = ax0.get_ylim()
+        dx, dy = xlims[1] - xlims[0], ylims[1] - ylims[0]
+        for key in elements:
+            for el in elements[key]:
+                pos, label = el[2], el[3]
+                ax0.plot([pos, pos], ylims, color='black', lw=1, ls='--')
+                ax0.text(pos, ylims[1]-0.03*dy, label, rotation=-90)
+        ax0.hold(False)
+        ax0.set_xlim(xlims)
+        ax0.set_ylim(ylims)
         # Return
         return fig, ax0
