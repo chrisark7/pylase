@@ -66,6 +66,17 @@ class OpticalSystem:
         self.all_qs = []
 
     ###############################################################################################
+    # Overloading
+    ###############################################################################################
+    def __bool__(self):
+        """ Returns a boolean value
+
+        :return: False if no elements have been added yet or True otherwise
+        :rtype: bool
+        """
+        return bool(self.elements)
+
+    ###############################################################################################
     # Internal get/set/add/remove methods
     ###############################################################################################
     def _get_beam(self, beam_label):
@@ -634,7 +645,7 @@ class OpticalSystem:
         # Plot
         for ws_n, beam_label_n in zip(ws, beam_labels):
             for beam_label in beam_label_n:
-                ln = ax0.plot(zs, [scale*w for w in ws_n[beam_label]], lw=2, label=beam_label_n)
+                ln = ax0.plot(zs, [scale*w for w in ws_n[beam_label]], lw=2, label=beam_label)
                 ax0.hold(True)
                 ax0.plot(zs, [-1*scale*w for w in ws_n[beam_label]], lw=2, color=ln[0].get_color())
         ax0.grid(True)

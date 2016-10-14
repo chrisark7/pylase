@@ -66,9 +66,9 @@ for decenter in decentering:
     os_y.add_thin_lens(f=f_lens2, z=z_lens2, label='collimating lens')
     # Add beams
     os_x.add_beam(waist_size=w_x, distance_to_waist=0, wvlnt=wvlnt, z=0,
-                  beam_label='x {0:0.1f} mm'.format(decenter*1e3))
+                  beam_label='x {0:3.1f} mm'.format(decenter*1e3))
     os_y.add_beam(waist_size=w_y, distance_to_waist=0, wvlnt=wvlnt, z=0,
-                  beam_label='y {0:0.1f} mm'.format(decenter*1e3))
+                  beam_label='y {0:3.1f} mm'.format(decenter*1e3))
     # Append to lists
     sys_x.append(os_x)
     sys_y.append(os_y)

@@ -494,18 +494,21 @@ class RayMatrix(object):
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, dist], [0, 1]]), dist, (None, None)
+        return np.matrix([[1, dist], [0, 1]], dtype=np.float64), dist, (None, None)
 
     @classmethod
     def mirror_curved(cls, roc):
         """ Ray matrix for reflection from a curved mirror with ROC of :code:`roc`.
 
-        :param roc: radius of curvature of the mirror
-        :type roc: float
+        :param roc: radius of curvature of the mirror (None if infinite)
+        :type roc: float or None
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [-2/roc, 1]]), 0, (None, None)
+        if roc is None:
+            return np.matrix([[1, 0], [0, 1]], dtype=np.float64), 0, (None, None)
+        else:
+            return np.matrix([[1, 0], [-2/roc, 1]], dtype=np.float64), 0, (None, None)
 
     @classmethod
     def mirror_flat(cls):
@@ -514,7 +517,7 @@ class RayMatrix(object):
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [0, 1]]), 0, (None, None)
+        return np.matrix([[1, 0], [0, 1]], dtype=np.float64), 0, (None, None)
 
     @classmethod
     def lens_thin(cls, foc):
@@ -525,7 +528,7 @@ class RayMatrix(object):
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [-1/foc, 1]]), 0, (None, None)
+        return np.matrix([[1, 0], [-1/foc, 1]], dtype=np.float64), 0, (None, None)
 
     @classmethod
     def interface_flat(cls, n_ini, n_fin):
@@ -538,7 +541,7 @@ class RayMatrix(object):
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [0, n_ini/n_fin]]), 0, (n_ini, n_fin)
+        return np.matrix([[1, 0], [0, n_ini/n_fin]], dtype=np.float64), 0, (n_ini, n_fin)
 
     @classmethod
     def interface_curved(cls, n_ini, n_fin, roc):
@@ -549,14 +552,17 @@ class RayMatrix(object):
 
         :param n_ini: initial index of refraction
         :param n_fin: final index of refraction
-        :param roc: the radius of curvature of the interface
+        :param roc: the radius of curvature of the interface (or None if infinite)
         :type n_ini: float
         :type n_fin: float
-        :type roc: float
+        :type roc: float or None
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [(n_ini - n_fin)/(roc * n_fin), n_ini/n_fin]]), 0, (n_ini, n_fin)
+        if roc is None:
+            return np.matrix([[1, 0], [0, n_ini/n_fin]], dtype=np.float64), 0, (n_ini, n_fin)
+        else:
+            return np.matrix([[1, 0], [(n_ini - n_fin)/(roc * n_fin), n_ini/n_fin]], dtype=np.float64), 0, (n_ini, n_fin)
 
     @classmethod
     def prism(cls, n_air, n_mat, theta1, alpha, s):
@@ -598,7 +604,7 @@ class RayMatrix(object):
         # Calculate translation distance
         d = s * np.sin(alpha)/np.sin(np.pi/2 - th3)
         # Return
-        return np.matrix([[m, b], [0, 1/m]]), d, (None, None)
+        return np.matrix([[m, b], [0, 1/m]], dtype=np.float64), d, (None, None)
 
     @classmethod
     def mirror_tilted_tangential(cls, roc, aoi):
@@ -608,14 +614,17 @@ class RayMatrix(object):
         normal to the center of the mirror.  I.E. this it the ray matrix for the plane in which
         the mirror is tilted.
 
-        :param roc: radius of curvature of the mirror
+        :param roc: radius of curvature of the mirror (or None for infinite curvature)
         :param aoi: angle of incidence between mirror and beam
-        :type roc: float
+        :type roc: float or None
         :type aoi: float
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [-2/(roc * np.cos(aoi)), 1]]), 0, (None, None)
+        if roc is None:
+            return np.matrix([[1, 0], [0, 1]], dtype=np.float64), 0, (None, None)
+        else:
+            return np.matrix([[1, 0], [-2/(roc * np.cos(aoi)), 1]], dtype=np.float64), 0, (None, None)
 
     @classmethod
     def mirror_tilted_sagittal(cls, roc, aoi):
@@ -624,14 +633,17 @@ class RayMatrix(object):
         Sagittal rays are those which lie in the plane perpendicular to the tangential plane.  I.E.
         the one perpendicular to the plane in which the surface is tilted.
 
-        :param roc: radius of curvature of the mirror
+        :param roc: radius of curvature of the mirror (or None for infinite curvature)
         :param aoi: angle of incidence between mirror and beam
-        :type roc: float
+        :type roc: float or None
         :type aoi: float
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
-        return np.matrix([[1, 0], [-2/roc * np.cos(aoi), 1]]), 0, (None, None)
+        if roc is None:
+            return np.matrix([[1, 0], [0, 1]], dtype=np.float64), 0, (None, None)
+        else:
+            return np.matrix([[1, 0], [-2/roc * np.cos(aoi), 1]], dtype=np.float64), 0, (None, None)
 
     @classmethod
     def interface_tilted_tangential(cls, n_ini, n_fin, roc, aoi):
@@ -646,24 +658,33 @@ class RayMatrix(object):
 
         :param n_ini: initial index of refraction
         :param n_fin: final index of refraction
-        :param roc: radius of curvature of the interface (set to very large for flat)
+        :param roc: radius of curvature of the interface (or None for infinite curvature)
         :param aoi: angle of incidence between interface and beam in radians
         :type n_ini: float
         :type n_fin: float
-        :type roc: float
+        :type roc: float or None
         :type aoi: float
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
         nr = n_fin/n_ini
-        mat = np.matrix(
-            [
-                [np.sqrt(nr**2 - np.sin(aoi)**2)/(nr * np.cos(aoi)),
-                 0],
-                [(np.cos(aoi) - np.sqrt(nr**2 - np.sin(aoi)**2)) /
-                    (roc * np.cos(aoi) * np.sqrt(nr**2 - np.sin(aoi)**2)),
-                 np.cos(aoi)/np.sqrt(nr**2 - np.sin(aoi)**2)]
-            ])
+        if roc is None:
+            mat = np.matrix(
+                [
+                    [np.sqrt(nr**2 - np.sin(aoi)**2)/(nr * np.cos(aoi)),
+                     0],
+                    [0,
+                     np.cos(aoi)/np.sqrt(nr**2 - np.sin(aoi)**2)]
+                ], dtype=np.float64)
+        else:
+            mat = np.matrix(
+                [
+                    [np.sqrt(nr**2 - np.sin(aoi)**2)/(nr * np.cos(aoi)),
+                     0],
+                    [(np.cos(aoi) - np.sqrt(nr**2 - np.sin(aoi)**2)) /
+                        (roc * np.cos(aoi) * np.sqrt(nr**2 - np.sin(aoi)**2)),
+                     np.cos(aoi)/np.sqrt(nr**2 - np.sin(aoi)**2)]
+                ], dtype=np.float64)
         return mat, 0, (n_ini, n_fin)
 
     @classmethod
@@ -678,21 +699,30 @@ class RayMatrix(object):
 
         :param n_ini: initial index of refraction
         :param n_fin: final index of refraction
-        :param roc: radius of curvature of the interface (set to very large for flat)
+        :param roc: radius of curvature of the interface (or None for infinite curvature)
         :param aoi: angle of incidence between interface and beam in radians
         :type n_ini: float
         :type n_fin: float
-        :type roc: float
+        :type roc: float or None
         :type aoi: float
         :return: (ray matrix, total distance)
         :rtype: (np.matrix, float)
         """
         nr = n_fin/n_ini
-        mat = np.matrix(
-            [
-                [1,
-                 0],
-                [(np.cos(aoi) - np.sqrt(nr**2 - np.sin(aoi)**2))/(roc * nr),
-                 1/nr]
-            ])
+        if roc is None:
+            mat = np.matrix(
+                [
+                    [1,
+                     0],
+                    [0,
+                     1/nr]
+                ], dtype=np.float64)
+        else:
+            mat = np.matrix(
+                [
+                    [1,
+                     0],
+                    [(np.cos(aoi) - np.sqrt(nr**2 - np.sin(aoi)**2))/(roc * nr),
+                     1/nr]
+                ], dtype=np.float64)
         return mat, 0, (n_ini, n_fin)
