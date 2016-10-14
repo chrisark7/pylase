@@ -276,20 +276,46 @@ class OpticalSystem:
         :type label: str
         """
         # Find the index from the label
+        ind = self._get_element_index(label)
+        # Remove the elemnt
+        del self.elements[ind]
+        # Update
+        self._update()
+
+    def _adjust_element(self, element):
+        """ Overwrites an element in the optical system with a new element of the same label
+
+        :param element: an element tuple specifying the optical element
+        :type element: tuple
+        """
+        # Find element index
+        ind = self._get_element_index(element[3])
+        # Remove element
+        del self.elements[ind]
+        # Re-add element
+        self._add_element(element)
+
+    def _get_element_index(self, label):
+        """ Returns the element index given the label
+
+        :param label: The label assigned to the element
+        :type label: str or int
+        :return: The index of the element with label
+        :rtype: int
+        """
         if type(label) is int:
             try:
-                del self.elements[label]
+                self.elements[label]
+                ind = label
             except IndexError as exc:
                 raise ValueError('label is not a recognized element label') from exc
         else:
             labels = [el[3] for el in self.elements]
             try:
                 ind = labels.index(label)
-                del self.elements[ind]
             except ValueError as exc:
                 raise ValueError('label is not a recognized element label') from exc
-        # Update
-        self._update()
+        return ind
 
     ###############################################################################################
     # Internal System Building and Propagation Methods
@@ -487,6 +513,29 @@ class OpticalSystem:
                 raise TypeError('label should be a string')
         # Remove element
         self._remove_element(label=label)
+
+    def adjust_element_z(self, label, new_z):
+        """ Changes the position of an element to `new_z`
+
+        :param label: The string label for the element or an integer index
+        :param new_z: The new position of the element
+        :type label: str or int
+        :type new_z: float
+        """
+        # Get index from label
+        ind = self._get_element_index(label)
+        # Check that new_z can be a float
+        if type(new_z) is not float:
+            try:
+                new_z = float(new_z)
+            except ValueError as exc:
+                raise TypeError('new_z should be a float')
+        # Create new element
+        new_el = list(self.elements[ind])
+        new_el[2] = new_z
+        new_el = tuple(new_el)
+        # Update
+        self._adjust_element(new_el)
 
     def add_thin_lens(self, f, z, label):
         """ Add a thin lens to the system with focal length f at position z
