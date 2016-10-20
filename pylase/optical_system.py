@@ -16,7 +16,6 @@ from pylase import q_param, ray_matrix
 from scipy.optimize import minimize
 
 __author__ = "Chris Mueller"
-__email__ = "chrisark7@gmail.com"
 __status__ = "Development"
 
 
@@ -794,6 +793,7 @@ class OpticalSystem:
             scale, unit = 1e3, 'mm'
         # Initialize figure
         fig = plt.figure(num=fig_num, figsize=[11, 7])
+        fig.clf()
         # Grid
         grd0 = GridSpec(1, 1)
         grd0.update(left=0.1, right=0.90, bottom=0.1, top=0.93, hspace=0.30, wspace=0.28)

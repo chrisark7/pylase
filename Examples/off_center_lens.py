@@ -11,6 +11,10 @@ surfaces) plays a larger role than the focal length shift.
 import numpy as np
 from pylase.optical_system import OpticalSystem
 
+__author__ = "Chris Mueller"
+__status__ = "Example"
+
+
 ## Parameters #####################################################################################
 roc = -23.1e-3
 center_thickness = 1.5e-3

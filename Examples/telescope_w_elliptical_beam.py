@@ -7,6 +7,10 @@ plots the beam size through the system.
 import numpy as np
 from pylase.optical_system import OpticalSystem
 
+__author__ = "Chris Mueller"
+__status__ = "Example"
+
+
 # Create optical system with two lenses
 os = OpticalSystem()
 os.add_thin_lens(f=50e-3, z=100e-3, label='lens 1')

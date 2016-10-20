@@ -9,6 +9,10 @@ measurements.
 from pylase.optical_system import OpticalSystem
 from numpy import linspace
 
+__author__ = "Chris Mueller"
+__status__ = "Example"
+
+
 # Parameters and data
 guess_w0, guess_z = 200e-6, 2
 wvlnt = 355e-9
