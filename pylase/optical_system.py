@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from pylase import q_param, ray_matrix
+from scipy.optimize import minimize
 
 __author__ = "Chris Mueller"
 __email__ = "chrisark7@gmail.com"
@@ -64,6 +65,8 @@ class OpticalSystem:
         self._el_hash = hash(tuple(self.elements))
         # Initialize a list for the q parameters
         self.all_qs = []
+        # Add a dummy element until another element is added
+        self._add_element(('interface_flat', (1, 1), 0, 'empty_system'), initial=True)
 
     ###############################################################################################
     # Overloading
@@ -254,12 +257,15 @@ class OpticalSystem:
         """
         return self.elements
 
-    def _add_element(self, element):
+    def _add_element(self, element, initial=False):
         """ Adds an element tuple to the elements list
 
         :param element: an element tuple specifying the optical element
         :type element: tuple
         """
+        # If not initial, remove the empty system element
+        if not initial:
+            self._remove_element('empty_system')
         # Check that none of the labels are the same
         if element[3] in (el[3] for el in self.elements):
             raise ValueError('label is already used for another optical element')
@@ -279,6 +285,9 @@ class OpticalSystem:
         ind = self._get_element_index(label)
         # Remove the elemnt
         del self.elements[ind]
+        # If there aren't any elements in the system, add the empty system element
+        if len(self.elements) == 0:
+            self._add_element(('interface_flat', (1, 1), 0, 'empty_system'), initial=True)
         # Update
         self._update()
 
@@ -639,6 +648,8 @@ class OpticalSystem:
         q /= ior
         # Return
         return q.w(m2=1)
+
+
 
     ###############################################################################################
     # Graphics
