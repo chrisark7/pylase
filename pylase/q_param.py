@@ -154,10 +154,11 @@ class qParameter(object):
         if q is None:
             if position is None:
                 z = 0
-            elif not (type(position) is float or type(position) is int):
-                raise TypeError('position should be a float or int')
             else:
-                z = position
+                try:
+                    z = float(position)
+                except ValueError:
+                    raise TypeError('position should be a float or int')
             if beamsize is None:
                 if rayleigh is None:
                     raise TypeError('either beamsize or rayleigh must be specified if q is None')

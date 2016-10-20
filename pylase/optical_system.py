@@ -66,7 +66,7 @@ class OpticalSystem:
         # Initialize a list for the q parameters
         self.all_qs = []
         # Add a dummy element until another element is added
-        self._add_element(('interface_flat', (1, 1), 0, 'empty_system'), initial=True)
+        self._add_element(('interface_flat', (1, 1), 0, ''), initial=True)
 
     ###############################################################################################
     # Overloading
@@ -278,13 +278,18 @@ class OpticalSystem:
         """
         # If not initial, remove the empty system element
         if not initial:
-            self._remove_element('empty_system')
+            if element[3] == '':
+                raise ValueError('label should not be an empty string')
         # Check that none of the labels are the same
         if element[3] in (el[3] for el in self.elements):
             raise ValueError('label is already used for another optical element')
         # Append and sort elements by position
         self.elements.append(element)
         self.elements = sorted(self.elements, key=lambda x: x[2])
+        # Remove the empty system element if it is there
+        if not initial:
+            if '' in (el[3] for el in self.elements):
+                self._remove_element('')
         # Update
         self._update()
 
@@ -296,11 +301,11 @@ class OpticalSystem:
         """
         # Find the index from the label
         ind = self._get_element_index(label)
-        # Remove the elemnt
+        # Remove the element
         del self.elements[ind]
         # If there aren't any elements in the system, add the empty system element
         if len(self.elements) == 0:
-            self._add_element(('interface_flat', (1, 1), 0, 'empty_system'), initial=True)
+            self._add_element(('interface_flat', (1, 1), 0, ''), initial=True)
         # Update
         self._update()
 
@@ -602,7 +607,7 @@ class OpticalSystem:
     ###############################################################################################
     # Add and Remove  Beams
     ###############################################################################################
-    def add_beam(self, waist_size, distance_to_waist, wvlnt, z, beam_label, q=None):
+    def add_beam_from_parameters(self, waist_size, distance_to_waist, wvlnt, z, beam_label):
         """ Adds a beam to the optical system instance
 
         A beam in the OpticalSystem class contains the following pieces of information:
@@ -621,23 +626,30 @@ class OpticalSystem:
         :param wvlnt: the wavelength of the light
         :param z: position along optical axis at which beam is defined
         :param beam_label: a string label to access the beam later
-        :param q: the q parameter can be specified directly in which case waist_size,
-                  distance_to_waist, and wvlnt parameters are ignored
         :type waist_size: float
         :type distance_to_waist: float
         :type wvlnt: float
         :type z: float
         :type beam_label: str
-        :type q: q_param.qParameter or None
         """
-        # Build qParameter if q is None
-        if q is not None:
-            if type(q) is not q_param.qParameter:
-                raise TypeError('q should be an instance of the qParameter class')
-        else:
-            q = q_param.qParameter(wvlnt=wvlnt)
-            q.set_q(beamsize=waist_size, position=distance_to_waist)
+        q = q_param.qParameter(wvlnt=wvlnt)
+        q.set_q(beamsize=waist_size, position=distance_to_waist)
         # Add beam
+        self._add_beam((q, z, beam_label))
+
+    def add_beam_from_q(self, q, z, beam_label):
+        """ Add a beam to the OpticalSystem from the q parameter
+
+         Adds a beam to the OpticalSystem instance from an instance of the qParameter class, the
+         position along the optical axis, and the beam_label.
+
+        :param q: An instance of the qParameter class
+        :param z: The position along the optical axis
+        :param beam_label: The string identifier of the beam
+        :type q: q_param.qParameter
+        :type z: float
+        :type beam_label: str
+        """
         self._add_beam((q, z, beam_label))
 
     def remove_beam(self, beam_label):
@@ -710,17 +722,17 @@ class OpticalSystem:
             raise TypeError('data should be a list of 2-element lists')
         # Scale beam
         guess_q = self._get_beam(beam_label=guess_beam_label)
-        scale_w0 = guess_q[0].w0
+        scale_w0 = guess_q[0].w0()
         # Define fitting function
         def fit_fun(params):
             """ params = (w0, z)
             """
             # Add the beam
-            self.add_beam(waist_size=params[0]*scale_w0,
-                          distance_to_waist=params[1],
-                          wvlnt=guess_q[0].get_wvlnt(),
-                          z=guess_q[1],
-                          beam_label='fitting_beam')
+            self.add_beam_from_parameters(waist_size=params[0] * scale_w0,
+                                          distance_to_waist=params[1],
+                                          wvlnt=guess_q[0].get_wvlnt(),
+                                          z=guess_q[1],
+                                          beam_label='fitting_beam')
             # Calculate sum of squares of differences
             ssq = sum(((self.w(beam_label='fitting_beam', z=z) - w)**2 for z, w in zip(zs, ws)))
             # Remove beam
@@ -734,7 +746,7 @@ class OpticalSystem:
             warnings.warn('Optimization failed with message: {0}'.format(res.message))
         # Return a q parameter
         out_q = q_param.qParameter(wvlnt=guess_q[0].get_wvlnt())
-        out_q.set_q(beamsize=res.x[0], position=res.x[1])
+        out_q.set_q(beamsize=res.x[0]*scale_w0, position=res.x[1])
         return out_q
 
     ###############################################################################################
