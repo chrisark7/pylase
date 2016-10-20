@@ -158,6 +158,19 @@ class OpticalSystem:
         # Update
         self._update()
 
+    def _remove_beam(self, beam_label):
+        """ Removes a beam from the beams attribute
+
+        :param beam_label: The label associated with the beam
+        :type beam_label: str
+        """
+        # Find the index from the label
+        ind = self._get_beam_index(beam_label)
+        # Remove the element
+        del self.beams[ind]
+        # Update
+        self._update()
+
     def _get_q(self, beam_label, pos_num):
         """ Returns the q parameter of the specified beam at the specified position
 
@@ -324,6 +337,22 @@ class OpticalSystem:
                 ind = labels.index(label)
             except ValueError as exc:
                 raise ValueError('label is not a recognized element label') from exc
+        return ind
+
+    def _get_beam_index(self, beam_label):
+        """ Returns the beam index given the beam_label"""
+        if type(beam_label) is int:
+            try:
+                self.beams[beam_label]
+                ind = beam_label
+            except IndexError as exc:
+                raise ValueError('beam_label is not a recognized beam label') from exc
+        else:
+            labels = [bm[2] for bm in self.beams]
+            try:
+                ind = labels.index(beam_label)
+            except ValueError as exc:
+                raise ValueError('beam_label is not a recognized beam label') from exc
         return ind
 
     ###############################################################################################
@@ -611,6 +640,14 @@ class OpticalSystem:
         # Add beam
         self._add_beam((q, z, beam_label))
 
+    def remove_beam(self, beam_label):
+        """ Removes a beam from the optical system given the beam_label
+
+        :param beam_label: The identifier associated with the beam to be removed
+        :type beam_label: str
+        """
+        self._remove_beam(beam_label)
+
     ###############################################################################################
     # Calculations
     ###############################################################################################
@@ -649,7 +686,56 @@ class OpticalSystem:
         # Return
         return q.w(m2=1)
 
+    def fit_q(self, guess_beam_label, data):
+        """ Uses measured data to fit a beam starting with an initial guess
 
+        This method fits a q parameter to measured data using the `scipy.optimize.minimize`
+        routine.  The optical system needs to have a beam defined which this method will use as
+        its initial guess.  The data should be passed in list of list format with the first
+        element being the position along the optical axis, and the second being the beam size at
+        that position, i.e.
+           - data = [[z_1, w_z], [z_2, w_2], [z_3, w_3], ....]
+
+        :param guess_beam_label: The beam_label of the beam which will be used as a guess
+        :param data: The data to which the beam will be fit
+        :type guess_beam_label: str
+        :type data: list of list of float
+        :return:
+        """
+        # Check format of data
+        try:
+            zs = [x[0] for x in data]
+            ws = [x[1] for x in data]
+        except:
+            raise TypeError('data should be a list of 2-element lists')
+        # Scale beam
+        guess_q = self._get_beam(beam_label=guess_beam_label)
+        scale_w0 = guess_q[0].w0
+        # Define fitting function
+        def fit_fun(params):
+            """ params = (w0, z)
+            """
+            # Add the beam
+            self.add_beam(waist_size=params[0]*scale_w0,
+                          distance_to_waist=params[1],
+                          wvlnt=guess_q[0].get_wvlnt(),
+                          z=guess_q[1],
+                          beam_label='fitting_beam')
+            # Calculate sum of squares of differences
+            ssq = sum(((self.w(beam_label='fitting_beam', z=z) - w)**2 for z, w in zip(zs, ws)))
+            # Remove beam
+            self.remove_beam(beam_label='fitting_beam')
+            return ssq
+        # Minimize the sum of squares
+        res = minimize(fit_fun, (1, guess_q[0].z()), tol=1e-5, method='Nelder-Mead')
+        if res.success:
+            print(res.message)
+        else:
+            warnings.warn('Optimization failed with message: {0}'.format(res.message))
+        # Return a q parameter
+        out_q = q_param.qParameter(wvlnt=guess_q[0].get_wvlnt())
+        out_q.set_q(beamsize=res.x[0], position=res.x[1])
+        return out_q
 
     ###############################################################################################
     # Graphics
