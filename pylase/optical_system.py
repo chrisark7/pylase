@@ -9,6 +9,7 @@ an optical system consisting of a number of optical elements and a Gaussian lase
 
 import warnings
 from difflib import SequenceMatcher
+from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -66,6 +67,11 @@ class OpticalSystem:
         self.all_qs = []
         # Add a dummy element until another element is added
         self._add_element(('interface_flat', (1, 1), 0, ''), initial=True)
+
+    def copy(self):
+        """ Creates a copy of the optical system which can be modified independently
+        """
+        return deepcopy(self)
 
     ###############################################################################################
     # Overloading
@@ -726,6 +732,9 @@ class OpticalSystem:
         def fit_fun(params):
             """ params = (w0, z)
             """
+            # Waist size can't be less than zero
+            if params[0] < 0:
+                params[0] = 1e-6*scale_w0
             # Add the beam
             self.add_beam_from_parameters(waist_size=params[0] * scale_w0,
                                           distance_to_waist=params[1],
