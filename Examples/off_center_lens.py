@@ -47,24 +47,25 @@ for decenter in decentering:
     os_x = OpticalSystem()
     os_y = OpticalSystem()
     # Calculate angle of incidence and thickness
-    aoi = np.arcsin(decenter/roc_a)
-    extra_thickness = roc_a * (1 - np.cos(aoi))
+    aoi_1 = np.arcsin(decenter/roc_a)
+    aoi_2 = aoi_1 - np.arcsin(np.sin(aoi_1)/n_lens)
+    extra_thickness = roc_a * (1 - np.cos(aoi_1))
     # Add elements
     os_x.add_element(element_type='interface_tilted_tangential',
-                     parameters=(1, n_lens, roc, aoi),
+                     parameters=(1, n_lens, roc, aoi_1),
                      z=z_lens1 - extra_thickness,
                      label='curved interface')
-    os_x.add_element(element_type='interface_flat',
-                     parameters=(n_lens, 1),
+    os_x.add_element(element_type='interface_tilted_tangential',
+                     parameters=(n_lens, 1, None, aoi_2),
                      z=z_lens1 + center_thickness,
                      label='flat interface')
     os_x.add_thin_lens(f=f_lens2, z=z_lens2, label='collimating lens')
     os_y.add_element(element_type='interface_tilted_sagittal',
-                     parameters=(1, n_lens, roc, aoi),
+                     parameters=(1, n_lens, roc, aoi_1),
                      z=z_lens1 - extra_thickness,
                      label='curved interface')
-    os_y.add_element(element_type='interface_flat',
-                     parameters=(n_lens, 1),
+    os_y.add_element(element_type='interface_tilted_sagittal',
+                     parameters=(n_lens, 1, None, aoi_2),
                      z=z_lens1 + center_thickness,
                      label='flat interface')
     os_y.add_thin_lens(f=f_lens2, z=z_lens2, label='collimating lens')

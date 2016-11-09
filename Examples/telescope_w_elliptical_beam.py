@@ -24,11 +24,3 @@ os.add_beam_from_parameters(waist_size=0.2e-3, distance_to_waist=0, wvlnt=1064e-
 fig, ax = os.plot_w(zs=np.linspace(0, 500e-3, 500))
 ax.set_title('Elliptical Beam in 3X Telescope')
 fig.show()
-
-
-
-
-
-
-
-
