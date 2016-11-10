@@ -73,6 +73,60 @@ class OpticalSystem:
         """
         return deepcopy(self)
 
+    def print_summary(self, return_string=False):
+        """ Defines the representation of the optical system at the command line
+
+        If return_string=True, then the summary is returned as a string instead of being printed
+        to the screen.
+
+        :param return_string: whether or not to print the summary or return a summary string
+        :type return_string: bool
+        :return: if print=False, then a summary string is returned
+        :rtype: str
+        """
+        # PRINT BEAMS
+        # Determine lengths first
+        col_labels = ["Label", "q Parameter", "Position"]
+        col_indices = [2, 0, 1]
+        beams = self.beams
+        col_lens = []
+        for jj in range(len(col_indices)):
+            col_lens.append(max((len(col_labels[jj]),
+                                 max((len(str(x[col_indices[jj]])) for x in beams)))))
+        # Build string
+        tot_len = (sum(col_lens) + 3*(len(col_lens) - 1) + 4)
+        bm_str = ' Beams '.center(tot_len, '+') + '\n'
+        bm_str += '| ' + ' | '.join(clab.ljust(clen) for clab, clen in
+                                    zip(col_labels, col_lens)) + ' |\n'
+        bm_str += '=' * tot_len + '\n'
+        for bm in beams:
+            bm_str += '| ' + ' | '.join(str(bm[cind]).ljust(clen) for cind, clen in
+                                        zip(col_indices, col_lens)) + ' |\n'
+        # PRINT ELEMENTS
+        # Determine lengths first
+        col_labels = ["Label", "Element Type", "Element Parameters", "Position"]
+        col_indices = [3, 0, 1, 2]
+        elements = self._get_elements()
+        col_lens = []
+        for jj in range(len(col_indices)):
+            col_lens.append(max((len(col_labels[jj]),
+                                 max((len(str(x[col_indices[jj]])) for x in elements)))))
+        # Build string
+        tot_len = (sum(col_lens) + 3*(len(col_lens) - 1) + 4)
+        el_str = ' Elements '.center(tot_len, '+') + '\n'
+        el_str += '| ' + ' | '.join(clab.ljust(clen) for clab, clen in
+                                    zip(col_labels, col_lens)) + ' |\n'
+        el_str += '=' * tot_len + '\n'
+        for el in elements:
+            el_str += '| ' + ' | '.join(str(el[cind]).ljust(clen) for cind, clen in
+                                        zip(col_indices, col_lens)) + ' |\n'
+        # Build total string
+        tot_str = bm_str + '\n' + el_str
+        if return_string:
+            return tot_str
+        else:
+            print(tot_str)
+
     ###############################################################################################
     # Overloading
     ###############################################################################################
@@ -82,7 +136,8 @@ class OpticalSystem:
         :return: False if no elements have been added yet or True otherwise
         :rtype: bool
         """
-        return bool(self.elements)
+        elements = self._get_elements()
+        return bool(elements[0][3])
 
     ###############################################################################################
     # Internal get/set/add/remove methods
@@ -597,17 +652,75 @@ class OpticalSystem:
         """
         self.add_element('lens_thin', (f,), z, label)
 
-    def add_curved_mirror(self, roc, z, label):
-        """ Add a curved mirror to the system with radius of curvature roc at position z
+    def add_thick_lens(self, roc_1, roc_2, n_ext, n_lens, thickness, z, label):
+        """ Adds a thick lens to the optical system
 
-        :param roc: radius of curvature of mirror
+        Note one or both interfaces can be flat by setting e.g. `roc_1=None`.  Also note that
+        this method actually adds two interfaces to the optical system
+
+        :param roc_1: radius of curvature of first surface
+        :param roc_2: radius of curvature of second surface
+        :param n_ext: external index of refraction (most likely n_ext=1)
+        :param n_lens: internal index of refraction
+        :param thickness: center thickness of the lens
+        :param z: position along optical axis
+        :param label: string label to identify the element
+        :type roc_1: float
+        :type roc_2: float
+        :type n_ext: float
+        :type n_lens: float
+        :type thickness: float
+        :type z: float
+        :type label: str
+        """
+        # Add the first interface
+        if roc_1 is None:
+            self.add_element('interface_flat', (n_ext, n_lens), z - thickness/2, label + ' itf1')
+        else:
+            self.add_element('interface_curved', (n_ext, n_lens, roc_1), z - thickness/2, label + ' itf1')
+        # Add the second interface
+        if roc_2 is None:
+            self.add_element('interface_flat', (n_lens, n_ext), z + thickness/2, label + ' itf2')
+        else:
+            self.add_element('interface_curved', (n_lens, n_ext, roc_2), z + thickness/2, label + ' itf2')
+
+    def add_mirror(self, roc, z, label):
+        """ Add a curved or flat mirror to the system with radius of curvature roc at position z
+
+        Note that `roc=None` will add a flat mirror.
+
+        :param roc: radius of curvature of mirror (flat if roc=None)
         :param z: position along optical axis
         :param label: string label to identify the element
         :type roc: float
         :type z: float
         :type label: str
         """
-        self.add_element('mirror_curved', (roc,), z, label)
+        if roc is None:
+            self.add_element('mirror_flat', None, z, label)
+        else:
+            self.add_element('mirror_curved', (roc,), z, label)
+
+    def add_interface(self, n_ini, n_fin, roc, z, label):
+        """ Adds a curved or flat interface to the optical system at position z
+
+        Note that `roc=None` will add a flat interface.
+
+        :param n_ini: initial index of refraction
+        :param n_fin: final index of refraction
+        :param roc: radius of curvature of the interface (flat if roc=None)
+        :param z: position along optical axis
+        :param label: string label to identify the element
+        :type n_ini: float
+        :type n_fin: float
+        :type roc: float
+        :type z: float
+        :type label: str
+        """
+        if roc is None:
+            self.add_element('interface_flat', (n_ini, n_fin), z, label)
+        else:
+            self.add_element('interface_curved', (n_ini, n_fin, roc), z, label)
 
     ###############################################################################################
     # Add and Remove  Beams
