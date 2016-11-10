@@ -73,8 +73,20 @@ class OpticalSystem:
         """
         return deepcopy(self)
 
+    def __str__(self):
+        """ Defines the string representation of the system
+        """
+        str_rep = "OpticalSystem with {0} elements and {1} beams".format(
+            len(self.elements), len(self.beams))
+        return str_rep
+
+    def __repr__(self):
+        """ Defines the representation of the Optical System at the command line
+        """
+        return self.__str__()
+
     def print_summary(self, return_string=False):
-        """ Defines the representation of the optical system at the command line
+        """ Prints a text summary of the optical system or returns it as a string
 
         If return_string=True, then the summary is returned as a string instead of being printed
         to the screen.
