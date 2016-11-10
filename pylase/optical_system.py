@@ -73,18 +73,6 @@ class OpticalSystem:
         """
         return deepcopy(self)
 
-    def __str__(self):
-        """ Defines the string representation of the system
-        """
-        str_rep = "OpticalSystem with {0} elements and {1} beams".format(
-            len(self.elements), len(self.beams))
-        return str_rep
-
-    def __repr__(self):
-        """ Defines the representation of the Optical System at the command line
-        """
-        return self.__str__()
-
     def print_summary(self, return_string=False):
         """ Prints a text summary of the optical system or returns it as a string
 
@@ -150,6 +138,18 @@ class OpticalSystem:
         """
         elements = self._get_elements()
         return bool(elements[0][3])
+
+    def __str__(self):
+        """ Defines the string representation of the system
+        """
+        str_rep = "OpticalSystem with {0} elements and {1} beams".format(
+            len(self.elements), len(self.beams))
+        return str_rep
+
+    def __repr__(self):
+        """ Defines the representation of the Optical System at the command line
+        """
+        return self.__str__()
 
     ###############################################################################################
     # Internal get/set/add/remove methods
@@ -527,7 +527,7 @@ class OpticalSystem:
         return q_new
 
     ###############################################################################################
-    # Add and Remove Optical Elements and Beams
+    # Add and Remove Optical Elements
     ###############################################################################################
     def add_element(self, element_type, parameters, z, label):
         """ Adds an optical element to the system
@@ -667,8 +667,11 @@ class OpticalSystem:
     def add_thick_lens(self, roc_1, roc_2, n_ext, n_lens, thickness, z, label):
         """ Adds a thick lens to the optical system
 
-        Note one or both interfaces can be flat by setting e.g. `roc_1=None`.  Also note that
-        this method actually adds two interfaces to the optical system
+        Some Notes:
+          * One or both interfaces can be flat by setting e.g. `roc_1=None`
+          * The method actually adds two interfaces to the optical system ' itf1' and 'itf2'
+          * The position is specified at the center of the thick lens, so interface 1 is at
+            `z - thickness/2`, and interface2 is at `z + thickness/2`
 
         :param roc_1: radius of curvature of first surface
         :param roc_2: radius of curvature of second surface
