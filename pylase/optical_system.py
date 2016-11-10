@@ -13,8 +13,9 @@ from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from pylase import q_param, ray_matrix
+from matplotlib.widgets import Slider
 from scipy.optimize import minimize
+from pylase import q_param, ray_matrix
 
 __author__ = "Chris Mueller"
 __status__ = "Development"
@@ -70,6 +71,9 @@ class OpticalSystem:
 
     def copy(self):
         """ Creates a copy of the optical system which can be modified independently
+
+        :return: a copy of the OpticalSystem instance
+        :rtype: OpticalSystem
         """
         return deepcopy(self)
 
@@ -898,7 +902,7 @@ class OpticalSystem:
         :type fig_num: int or None
         :type other_sys: OpticalSystem or list of OpticalSystem
         :return: (figure_handle, axis_handle)
-        :rtype: (plt.
+        :rtype: (plt.figure, plt.axis)
         """
         # Combine systems
         systems = [self]
@@ -948,7 +952,7 @@ class OpticalSystem:
         ax0.set_ylabel('Beam Radius [{0}]'.format(unit))
         ax0.set_xlim(xlims)
         ax0.legend(loc='best', fontsize=12)
-        # Get scales for
+        # Get scales for y
         ylims = ax0.get_ylim()
         dx, dy = xlims[1] - xlims[0], ylims[1] - ylims[0]
         for elements_n in elements:
@@ -959,5 +963,87 @@ class OpticalSystem:
         ax0.hold(False)
         ax0.set_xlim(xlims)
         ax0.set_ylim(ylims)
+        # Return
+        return fig, ax0
+
+    def plot_w_adjust_z(self, zs, adjust_label, adjust_range=None, fig_num=None):
+        """ Plots the beam size for all beams at the points given in `zs`
+
+        :param zs: the positions along the optical axis at which to plot the beams size
+        :param label: the label of the element whose position will be adjustable
+        :param fig_num: the figure number to use (next available if None)
+        :type zs: list or np.ndarray
+        :type label: str
+        :type fig_num: int or None
+        :return: (figure_handle, axis_handle)
+        :rtype: (plt.figure, plt.axis)
+        """
+        # Create copy of OpticalSystem in order to not modify original
+        copy = self.copy()
+        el_ind = copy._get_element_index(adjust_label)
+        # Get beam sizes
+        beam_labels = [beam[2] for beam in copy.beams]
+        elements = copy._get_elements()
+        ws = {}
+        for beam_label in beam_labels:
+            ws[beam_label] = [copy.w(beam_label=beam_label, z=z) for z in zs]
+        # Calculate units
+        mx = max(max(ws[key]) for key in ws)
+        scale, unit = 1, 'm'
+        if np.log10(mx) < -4:
+            scale, unit = 1e6, 'um'
+        elif np.log10(mx) < -1:
+            scale, unit = 1e3, 'mm'
+        # Initialize figure
+        fig = plt.figure(num=fig_num, figsize=[11, 7])
+        fig.clf()
+        ax0 = fig.add_subplot(111)
+        fig.subplots_adjust(bottom=0.25)
+        xlims = [np.min(zs), np.max(zs)]
+        if not adjust_range:
+            adjust_range = xlims
+        # Add initial plot
+        ps = {}
+        for beam_label in beam_labels:
+            p1, = ax0.plot(zs, [scale*w for w in ws[beam_label]], lw=2, label=beam_label)
+            ax0.hold(True)
+            p2, = ax0.plot(zs, [-1*scale*w for w in ws[beam_label]], lw=2, color=p1.get_color())
+            ps[beam_label] = [p1, p2]
+        ax0.grid(True)
+        ax0.set_xlabel('Position [m]')
+        ax0.set_ylabel('Beam Radius [{0}]'.format(unit))
+        ax0.set_xlim(xlims)
+        ax0.legend(loc='best', fontsize=12)
+        # Get scales for y
+        ylims = ax0.get_ylim()
+        dx, dy = xlims[1] - xlims[0], ylims[1] - ylims[0]
+        lns = {}
+        for element in elements:
+            pos, label = element[2], element[3]
+            ln, = ax0.plot([pos, pos], ylims, color='black', lw=1, ls='--')
+            ax0.text(pos, ylims[1]-0.03*dy, label, rotation=-90)
+            lns[label] = ln
+        ax0.hold(False)
+        ax0.set_xlim(xlims)
+        ax0.set_ylim(ylims)
+        # Add slider
+        axPos = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg='lightgoldenrodyellow')
+        sPos = Slider(axPos, '{0} z'.format(adjust_label), adjust_range[0],
+                      adjust_range[1], valinit=elements[el_ind][2])
+        # Define update function
+        def update(val):
+            pos = sPos.val
+            copy.adjust_element_z(label=adjust_label, new_z=pos)
+            elements = copy._get_elements()
+            for beam_label in beam_labels:
+                ws = [copy.w(beam_label=beam_label, z=z) for z in zs]
+                ps[beam_label][0].set_ydata([scale*w for w in ws])
+                ps[beam_label][1].set_ydata([-1*scale*w for w in ws])
+            for element in elements:
+                pos, label = element[2], element[3]
+                lns[label].set_xdata([pos, pos])
+            fig.canvas.draw_idle()
+        # Set update action
+        sPos.on_changed(update)
         # Return
         return fig, ax0
