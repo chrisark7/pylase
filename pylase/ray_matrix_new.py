@@ -198,4 +198,69 @@ class InterfaceRM(RayMatrix):
         self.ior_init = ior_init
         self.ior_fin = ior_fin
 
+class RayMatrixSystem:
+    """ A class for systems of ray matrices
+    """
+    def __init__(self, ray_matrices=None, positions=None):
+        """ A class for systems of ray matrices
+
+        Each argument is a list or tuple, and must be the same length.  The
+        `ray_matrices` argument should be a list or tuple of RayMatrix
+        instances, and the `positions` argument should be a list or tuple
+        containing the position along the optical axis of each RayMatrix.
+
+        :param ray_matrices: list of RayMatrix instances
+        :param positions: list of positions for each RayMatrix instance
+        :type ray_matrices: list of RayMatrix
+        :type positions: list of float
+        """
+        # Check for Nones
+        if ray_matrices is None:
+            self.ray_matrices = None
+            self.positions = None
+        # Check if the objects are iterable
+        elif not hasattr(ray_matrices, "__iter__"):
+            if not issubclass(type(ray_matrices), RayMatrix):
+                raise TypeError("ray_matrices argument should contain instances "
+                                "of the RayMatrix class")
+            try:
+                positions = float(positions)
+            except ValueError or TypeError:
+                raise TypeError("positions should be a float if ray_matrices "
+                                "is a RayMatrix")
+            self.ray_matrices = [ray_matrices]
+            self.positions = [positions]
+        # If the objects are iterables, check that they are properly composed
+        else:
+            try:
+                ray_matrices = list(ray_matrices)
+                positions = list(positions)
+            except TypeError:
+                raise TypeError("ray_matrices and positions should be convertible to "
+                                "lists")
+            if not len(ray_matrices) == len(positions):
+                raise TypeError("ray_matrices and positions should be the same length")
+            for rm in ray_matrices:
+                if not issubclass(type(rm), RayMatrix):
+                    raise TypeError("ray_matrices should contain RayMatrix instances")
+            try:
+                positions = [float(x) for x in positions]
+            except ValueError:
+                raise TypeError("position elements should be convertible to floats")
+            self.ray_matrices = ray_matrices
+            self.positions = positions
+        # Update
+        self._update()
+
+    def _update(self):
+        """ Updates the instance once a new RayMatrix has been added
+        """
+        if self.ray_matrices is not None:
+            # Sort by position
+            self.ray_matrices = [rm for (pos, rm) in
+                                 sorted(zip(self.positions, self.ray_matrices))]
+            self.positions = list(sorted(self.positions))
+
+
+
 
