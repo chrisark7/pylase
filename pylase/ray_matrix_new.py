@@ -12,6 +12,7 @@ gives a simple yet powerful framework for calculating how laser beams will
 transform through an optical system.
 """
 
+import warnings
 import numpy as np
 
 __author__ = "Chris Mueller"
@@ -249,18 +250,44 @@ class RayMatrixSystem:
                 raise TypeError("position elements should be convertible to floats")
             self.ray_matrices = ray_matrices
             self.positions = positions
+        # Add empty ior attribute
+        self.iors = None
         # Update
         self._update()
 
     def _update(self):
         """ Updates the instance once a new RayMatrix has been added
+
+        Specifically, this method:
+            1. Sorts the ray_matrices and positions attributes by position
+            2. Calculates the index of refraction at all points in the system
         """
         if self.ray_matrices is not None:
             # Sort by position
             self.ray_matrices = [rm for (pos, rm) in
                                  sorted(zip(self.positions, self.ray_matrices))]
             self.positions = list(sorted(self.positions))
-
-
-
-
+            # Calculate indices of refraction
+            first_found, iors = False, []
+            current_ior, last_ior = None, None
+            for rm in self.ray_matrices:
+                # Initial ior
+                if rm.ior_init is not None:
+                    current_ior = rm.ior_init
+                    if first_found:
+                        if not last_ior == current_ior:
+                            warnings.warn("output and input indices of refraction do "
+                                          "not match for some elements")
+                    first_found |= True
+                iors.append(current_ior)
+                # Final ior
+                if rm.ior_fin is not None:
+                    last_ior = rm.ior_fin
+            iors.append(last_ior)
+            if first_found:
+                i, v = next((i, v) for i, v in enumerate(iors) if v is not None)
+                for jj in range(i):
+                    iors[jj] = v
+            else:
+                iors = [1 for _ in iors]
+            self.iors = iors
