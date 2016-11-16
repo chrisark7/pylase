@@ -205,6 +205,10 @@ class RayMatrixSystem:
     def __init__(self, ray_matrices=None, positions=None):
         """ A class for systems of ray matrices
 
+        Note that objects are added to the system and the intervening space is
+        filled with translation ray matrices.  It is unnecessary to add the
+        translation matrices by hand.
+
         Each argument is a list or tuple, and must be the same length.  The
         `ray_matrices` argument should be a list or tuple of RayMatrix
         instances, and the `positions` argument should be a list or tuple
@@ -285,9 +289,160 @@ class RayMatrixSystem:
                     last_ior = rm.ior_fin
             iors.append(last_ior)
             if first_found:
-                i, v = next((i, v) for i, v in enumerate(iors) if v is not None)
+                i, v = next((i, v) for i, v in enumerate(iors)
+                            if v is not None)
                 for jj in range(i):
                     iors[jj] = v
             else:
                 iors = [1 for _ in iors]
             self.iors = iors
+
+    ###########################################################################
+    # Build Matrices
+    ###########################################################################
+    @classmethod
+    def _multiply_matrices(cls, ray_matrices, inverse=False):
+        """ Multiplies ray matrices passed as a list of RayMatrix instances
+
+        This method takes in a list or tuple of RayMatrix instances and returns
+        a single matrix (type: np.matrix) which is the multiple of those
+        matrices in the order specified.
+
+        The inverse parameter can be used to produce the matrix for
+        propagation in the opposite direction.  I.E.
+        _multiply_matrices(rm) * _multiply_matrices(rm, inverse=1) gives the
+        identity matrix
+
+        :param ray_matrices: a list or tuple of RayMatrix instances to multiply
+        :param inverse: inverts the matrix so that it can be used for
+            propagation in the other direction
+        :type ray_matrices: list of RayMatrix
+        :return: the multiplied matrix
+        :rtype: np.matrix
+        """
+        # Initialize identy matrix
+        mat = np.matrix([[1, 0], [0, 1]], dtype=np.float64)
+        # Loop through ray_matrices
+        for rm in ray_matrices:
+            mat = rm.matrix * mat
+        # Backward
+        if inverse:
+            a = mat[0, 0]
+            b = mat[0, 1]
+            c = mat[1, 0]
+            d = mat[1, 1]
+            mat = 1 / (a * d - b * c) * np.matrix([[d, -b], [-c, a]])
+        # Return
+        return mat
+
+    def _get_distances(self):
+        """ Returns the important distances of the RayMatrix elements
+
+        This method returns a list of lists with the internal distance and the
+        distance to the next element for each element.
+
+        :return: list with [internal distance, extra distance] entries
+        :rtype: list of list
+        """
+        # Distance between elements
+        dist = (a - b for a, b in zip(self.positions[1:], self.positions[:-1]))
+        out = [[rm.dist_internal, d - rm.dist_internal] for rm, d in
+               zip(self.ray_matrices[:-1], dist)]
+        out += [[self.ray_matrices[-1].dist_internal, None]]
+        return out
+
+    def _get_deadzones(self):
+        """ Returns the 'deadzones' where a ray matrix has internal distance
+
+        :return: list with [begin dz, end dz] entries
+        :rtype: list of list
+        """
+        dz = []
+        for rm, pos in zip(self.ray_matrices, self.positions):
+            if rm.dist_internal == 0:
+                dz.append(None)
+            else:
+                dz.append([pos, pos + rm.dist_internal])
+        return dz
+
+    def get_matrix(self, z_from, z_to, inverse=False):
+        """ Returns the matrix from `z_from` to `z_to`
+
+        This method returns the matrix between any two points in the ray matrix
+        system.  This matrix allows the user to propagate a ray between the two
+        points.  Note that if `z_to` is less than `z_from`, then the matrix is
+        such that the optical axis is reversed.  On the other hand, if the
+        `inverse` parameter is set to True, then the matrix assumes that the
+        optical axis still points in the same direction, but the propagation is
+        in reverse.
+
+        Note also that, for ray matrices which have an internal distance, the
+        matrix will be the same for any z_from or z_to which falls within that
+        range since the RayMatrixSystem does not have knowledge of how the ray
+        transforms within the element.
+
+        :param z_from: starting position along the optical axis
+        :param z_to: ending position along the optical axis
+        :param inverse: if True, then the inverse of the matrix is returned
+        :type z_from: float
+        :type z_to: float
+        :type inverse: bool
+        :return: ray matrix between the two points
+        :rtype: np.matrix
+        """
+        # Is it backwards
+        backwards = z_to < z_from
+        if backwards:
+            z_1, z_2 = z_to, z_from
+        else:
+            z_1, z_2 = z_from, z_to
+        # Get included elements, positions, and internal distances
+        els = [i for i, v in enumerate(self.positions) if z_1 < v < z_2]
+        dists = self._get_distances()
+        dzs = self._get_deadzones()
+        # Check if z_1 or z_2 are in a deadzone
+        dz_1, delt_1 = None, 0
+        dz_2 = None
+        ii = 0
+        for dz in dzs:
+            if dz is None:
+                ii += 1
+                pass
+            elif dz[0] < z_1 < dz[1]:
+                delt_1 = dz[1] - z_1
+                dz_1 = ii
+            elif dz[0] < z_2 < dz[1]:
+                dz_2 = ii
+            ii += 1
+        # Gather matrices
+        # If no elements were included, then just one translation matrix
+        if not els:
+            if (dz_1 is not None) and (dz_2 is not None):
+                mats = [TranslationRM(0)]
+            elif dz_1 is not None:
+                mats = [TranslationRM(z_2 - z_1 - delt_1)]
+            else:
+                mats = [TranslationRM(z_2 - z_1)]
+        else:
+            # Add first translation
+            mats = [TranslationRM(self.positions[els[0]] - z_1 - delt_1)]
+            # Append middle section
+            for i, el in enumerate(els):
+                mats.append(self.ray_matrices[el])
+                if not i == len(els) - 1:
+                    mats.append(TranslationRM(dists[el][1]))
+            # Append final translation
+            if dz_2 is None:
+                mats.append(TranslationRM(z_2 - self.positions[els[-1]] -
+                                          self.ray_matrices[els[-1]].dist_internal))
+        # Build total matrix
+        if backwards:
+            mat = self._multiply_matrices(reversed(mats), inverse=inverse)
+        else:
+            mat = self._multiply_matrices(mats, inverse=inverse)
+        return mat
+
+
+
+
+
