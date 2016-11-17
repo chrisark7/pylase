@@ -308,6 +308,8 @@ class RayMatrixSystem:
                             warnings.warn("output and input indices of refraction do "
                                           "not match for some elements")
                     first_found |= True
+                else:
+                    current_ior = last_ior
                 iors.append(current_ior)
                 # Final ior
                 if rm.ior_fin is not None:
@@ -337,33 +339,48 @@ class RayMatrixSystem:
         :rtype: str
         """
         # Labels
-        col_labels = ["#", "Element", "Parameters", "z"]
+        col_labels = ["#", "Element", "Parameters", "z", "IOR"]
         # Determine lengths
         col_len = [len(str(len(self.positions)))]
         col_len.append(max(len(x.type) for x in self.ray_matrices))
         col_len.append(max(len(par) for rm in self.ray_matrices for par in rm.parameters))
         col_len.append(max(len("{0:0.3g}".format(x)) for x in self.positions))
+        col_len.append(max(len("{0:0.3g}".format(x)) for x in self.iors))
         # Compare lengths to labels
         for i, v in enumerate(zip(col_len, col_labels)):
             col_len[i] = max((v[0], len(v[1])))
         # Build string
         out = "| " + " | ".join(clab.center(clen) for clab, clen in
                                 zip(col_labels, col_len)) + " |\n"
-        out += "=" * (sum(col_len) + 13) + "\n"
+        out += "=" * (sum(col_len) + 16) + "\n"
         for i, v in enumerate(zip(self.ray_matrices, self.positions)):
             rm, pos = v
             first_par = True
-            for par in rm.parameters:
-                if first_par:
-                    first_par = False
-                    out += "| " + "{0}".format(i).ljust(col_len[0]) + " | " + \
-                           rm.type.ljust(col_len[1]) + " | " + \
-                           par.ljust(col_len[2]) + " | " + \
-                           "{0:0.3g}".format(pos).ljust(col_len[3]) + " |\n"
-                else:
-                    out += "| " + " "*col_len[0] + " | " + " "*col_len[1] +\
-                           " | " + par.ljust(col_len[2]) + " | " + \
-                           " "*col_len[3] + " |\n"
+            out += "|-" + "-"*col_len[0] + "-|-" + "-"*col_len[1] +\
+                   "-|-" + "-"*col_len[2] + "-|-" + "-"*col_len[3] + "-| " + \
+                   "{0:0.3g}".format(self.iors[i]).ljust(col_len[4]) + " |\n"
+            if rm.parameters:
+                for par in rm.parameters:
+                    if first_par:
+                        first_par = False
+                        out += "| " + "{0}".format(i).ljust(col_len[0]) + " | " + \
+                               rm.type.ljust(col_len[1]) + " | " + \
+                               par.ljust(col_len[2]) + " | " + \
+                               "{0:0.3g}".format(pos).ljust(col_len[3]) + \
+                               " | " + " " *col_len[4] + " |\n"
+                    else:
+                        out += "| " + " "*col_len[0] + " | " + " "*col_len[1] +\
+                               " | " + par.ljust(col_len[2]) + " | " + \
+                               " "*col_len[3] + " | " +  " " *col_len[4] + " |\n"
+            else:
+                out += "| " + "{0}".format(i).ljust(col_len[0]) + " | " + \
+                       rm.type.ljust(col_len[1]) + " | " + \
+                       " " * col_len[2] + " | " + \
+                       "{0:0.3g}".format(pos).ljust(col_len[3]) + \
+                       " | " + " " * col_len[4] + " |\n"
+        out += "|-" + "-"*col_len[0] + "-|-" + "-"*col_len[1] +\
+               "-|-" + "-"*col_len[2] + "-|-" + "-"*col_len[3] + "-| " + \
+               "{0:0.3g}".format(self.iors[i+1]).ljust(col_len[4]) + " |\n"
         if return_string:
             return out
         else:
