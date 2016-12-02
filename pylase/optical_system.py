@@ -1047,3 +1047,9 @@ class OpticalSystem:
         sPos.on_changed(update)
         # Return
         return fig, ax0
+
+
+
+
+
+
