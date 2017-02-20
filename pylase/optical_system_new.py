@@ -9,6 +9,8 @@ the properties of an optical system consisting of a number of optical elements
 and a Gaussian laser beam.
 """
 
+from bisect import bisect_left
+import numpy as np
 from pylase import q_param, ray_matrix, optical_element
 
 __author__ = "Chris Mueller"
@@ -54,6 +56,9 @@ class OpticalSystem:
         :type beam: q_param.Beam
         """
         assert type(beam) is q_param.Beam
+        # Check that beam label does not match a prior beam label
+        if any(beam.label == x.label for x in self.beams):
+            raise ValueError("beam label is already in use")
         # Append beam to list
         self.beams.append(beam)
 
@@ -64,6 +69,9 @@ class OpticalSystem:
         :type element: optical_element.OpticalElement
         """
         assert isinstance(element, optical_element.OpticalElement)
+        # Check that beam label does not match a prior beam label
+        if any(element.label == x.label for x in self.elements):
+            raise ValueError("element label is already in use")
         # Append element to list
         self.elements.append(element)
         # Sort list to maintain order
@@ -72,6 +80,85 @@ class OpticalSystem:
     ###########################################################################
     # System Calculation
     ###########################################################################
+    @staticmethod
+    def _calc_prop_q(q, mat):
+        """ Propagates a q parameter with an ABCD matrix
+
+        :param q: q parameter
+        :param mat: abcd matrix
+        :type q: q_param.qParameter
+        :type mat: np.matrix
+        :return: new q parameter
+        :rtype: q_param.qParameter
+        """
+        assert issubclass(type(q), q_param.qParameter)
+        assert type(mat) is np.matrix
+        q_old = q.get_q()
+        q_new = (mat[0, 0] * q_old + mat[0, 1])/(mat[1, 0] * q_old + mat[1, 1])
+        q_new = q_param.qParameter(q=q_new, wvlnt=q.get_wvlnt())
+        return q_new
+
+    def _calc_all_matrices(self):
+        """ Extracts the ray matrices and their positions from the elements
+
+        This method returns a list of 2-element entries with the position and
+        ray matrix of every matrix in the optical system.  This differs from
+        the information stored in self.elements because the optical elements
+        can contain multiple ray matrices while this is every ray matrix in
+        succession.  The returned list is sorted by position.
+
+        :return: every ray matrix with its position
+        :rtype: list of tuple
+        """
+        # Get all ray matrices and their positions
+        out = []
+        for el in self.elements:
+            for pos, rm in zip(el.relative_positions, el.ray_matrices):
+                out.append([el.position + pos, rm])
+        # Sort the output
+        out.sort(key=lambda x: x[0])
+        return out
+
+    def _calc_ray_matrix_system(self):
+        """ Builds the RayMatrixSystem from the OpticalElements
+
+        This method takes the individual ray matrices contained in
+        `self.elements` (extracted using `_calc_all_matrices`) and uses them
+        to build a RayMatrixSystem instance which can be used to calculate
+        properties of the optical system.
+
+        :return: a RayMatrix System representation of the optical system
+        :rtype: ray_matrix.RayMatrixSystem
+        """
+        # Get the ray matrices
+        mats = self._calc_all_matrices()
+        return ray_matrix.RayMatrixSystem(ray_matrices=[x[1] for x in mats],
+                                          positions=[x[0] for x in mats])
+
+    def _calc_all_qs(self, beam):
+        """ Propagates the q parameter to all critical locations in the system
+
+        This method returns a list of q parameters which has length N+1 where
+        `len(self._calc_all_matrices())` has length N.  The first q
+        parameter is immediately prior to the first ray matrix while every
+        other q parameter is immediately after the corresponding ray matrix.
+        This allows any point in the system to be reached by simply adding
+        (or subtracting) the appropriate amount of distance to the appropriate
+        q parameter.
+
+        :return: list of qParameters
+        :rtype: list of q_param.qParameter
+        """
+        assert type(beam) is q_param.Beam
+        # Get all ray matrices and identify location of q parameter
+        mats = self._calc_all_matrices()
+        ind = bisect_left((x[0] for x in mats), beam.position)
+        # Propagate q parameter to nearest location
+        q = beam.get_q()
+        if ind == 0:
+            q = q + mats[ind][0] - beam.position
+        else:
+            q = q + mats[ind-1][0] - beam.position
 
     ###########################################################################
     # Add Optical Elements
@@ -230,7 +317,7 @@ class OpticalSystem:
         :type wvlnt: float
         """
         # Create Beam instance
-        beam = q_param.Beam(z=z, label=label, wvlnt=wvlnt)
+        beam = q_param.Beam(position=z, label=label, wvlnt=wvlnt)
         # Set the q parameter
         beam.set_q(beamsize=beam_size, position=distance_to_waist)
         # Add the beam to the list

@@ -414,7 +414,7 @@ class Beam(qParameter):
     """ Extension of the qParameter class which includes a position and label
 
     """
-    def __init__(self, z, label, q=None, wvlnt=None):
+    def __init__(self, position, label, q=None, wvlnt=None):
         """ Returns an object in the qParameter class
 
         It is possible to initialize an empty object so that the set routines (defined below) can
@@ -435,11 +435,11 @@ class Beam(qParameter):
         """
         assert type(label) is str
         try:
-            z = float(z)
+            position = float(position)
         except ValueError:
             raise ValueError("z should be a float")
         super(Beam, self).__init__(q=q, wvlnt=wvlnt)
-        self.z = z
+        self.position = position
         self.label = label
 
     def __repr__(self):
@@ -447,7 +447,7 @@ class Beam(qParameter):
         """
         out = "{0}: {1} @ {2:0.2g}, wvlnt={3:0.3g}".format(self.label,
                                                            super(Beam, self).__repr__(),
-                                                           self.z,
+                                                           self.position,
                                                            self.wvlnt)
         return out
 

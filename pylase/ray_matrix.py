@@ -31,6 +31,7 @@ class RayMatrix:
         self.type = None
         self.parameters = None
 
+
 class TranslationRM(RayMatrix):
     """ The RayMatrix for translation
     """
@@ -45,6 +46,7 @@ class TranslationRM(RayMatrix):
         self.dist_internal = distance
         self.type = "Translation"
         self.parameters = ["d={0:0.3g}".format(distance)]
+
 
 class ThinLensRM(RayMatrix):
     """ RayMatrix for a thin lens
@@ -62,6 +64,7 @@ class ThinLensRM(RayMatrix):
         self.dist_internal = 0
         self.type = "Thin Lens"
         self.parameters = ["f={0:0.3g}".format(f)]
+
 
 class PrismRM(RayMatrix):
     """ RayMatrix for a prism
@@ -116,6 +119,7 @@ class PrismRM(RayMatrix):
                            zip(("n_air=", "n_mat=", "theta1=", "alpha=", "s="),
                                (n_air, n_mat, theta1, alpha, s))]
 
+
 class MirrorRM(RayMatrix):
     """ The RayMatrix for a curved or flat mirror
     """
@@ -160,6 +164,7 @@ class MirrorRM(RayMatrix):
                            zip(("roc=", "aoi="), (roc, aoi)) if y is not None]
         if aoi is not None:
             self.parameters.append("orient=" + orientation)
+
 
 class InterfaceRM(RayMatrix):
     """ RayMatrix for an interface which can optionally be curved and/or tilted
@@ -222,6 +227,7 @@ class InterfaceRM(RayMatrix):
                                (ior_init, ior_fin, roc, aoi)) if y is not None]
         if aoi is not None:
             self.parameters.append("orient=" + orientation)
+
 
 class RayMatrixSystem:
     """ A class for systems of ray matrices
@@ -435,11 +441,14 @@ class RayMatrixSystem:
         :rtype: list of list
         """
         # Distance between elements
-        dist = (a - b for a, b in zip(self.positions[1:], self.positions[:-1]))
-        out = [[rm.dist_internal, d - rm.dist_internal] for rm, d in
-               zip(self.ray_matrices[:-1], dist)]
-        out += [[self.ray_matrices[-1].dist_internal, None]]
-        return out
+        if not self.ray_matrices:
+            return []
+        else:
+            dist = (a - b for a, b in zip(self.positions[1:], self.positions[:-1]))
+            out = [[rm.dist_internal, d - rm.dist_internal] for rm, d in
+                   zip(self.ray_matrices[:-1], dist)]
+            out += [[self.ray_matrices[-1].dist_internal, None]]
+            return out
 
     def _get_deadzones(self):
         """ Returns the 'deadzones' where a ray matrix has internal distance
@@ -527,7 +536,7 @@ class RayMatrixSystem:
                                           self.ray_matrices[els[-1]].dist_internal))
         # Build total matrix
         if backwards:
-            mat = self._multiply_matrices(reversed(mats), inverse=inverse)
+            mat = self._multiply_matrices(list(reversed(mats)), inverse=inverse)
         else:
             mat = self._multiply_matrices(mats, inverse=inverse)
         return mat
