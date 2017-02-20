@@ -1,8 +1,8 @@
 """ Creates a class structure for optical elements
 
 The key difference between an optical element and a ray matrix is that an
-optical element can consist of several ray matrices joined which together act
-as a single element.  The most common example is that of a thin lens which
+optical element can consist of several ray matrices which together act
+as a single element.  The most common example is that of a thick lens which
 consists of two curved interfaces and an intervening translation.
 
 The optical element class contains a position and label for the optical element

@@ -1,9 +1,9 @@
 """ Work with ray matrices and q parameters to calculate properties of an optical system
 
 The Gaussian beam q parameter, encapsulated in the qParameter class, completely defines a Gaussian
-laser beam in the paraxial limit.  Similiarly, a system of geometrical optical ray matrices,
+laser beam in the paraxial limit.  Similarly, a system of geometrical optical ray matrices,
 encapsulated in the RayMatrix class, completely defines a series of optical system in the paraxial
-limit.  This module brings the two of those togeter to allow the user to calculate properties of
+limit.  This module brings the two of those together to allow the user to calculate properties of
 an optical system consisting of a number of optical elements and a Gaussian laser beam.
 """
 
@@ -33,9 +33,9 @@ class OpticalSystem:
     def __init__(self):
         """ The constructor for the OpticalSystem class.
 
-        The three inputs necessary to define an OpticalSystem object are an object of the
-        RayMatrix class, an object of the qParameter class, and an location within the system
-        specifying where the qParameter is defined.  These are built up in the OpticalSytem using
+        The three inputs necessary to define an OpticalSystem instance are an instance of the
+        RayMatrix class, an instance of the qParameter class, and a location within the system
+        specifying where the qParameter is defined.  These are built up in the OpticalSystem using
         the class methods rather than being passed to the constructor.  This method simply
         initializes an empty object.
 

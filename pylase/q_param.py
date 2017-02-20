@@ -30,9 +30,9 @@ class qParameter(object):
     def __init__(self, q=None, wvlnt=None):
         """ Returns an object in the qParameter class
 
-        It is possible to initialie an empty object so that the set routines (defined below) can
+        It is possible to initialize an empty object so that the set routines (defined below) can
         be used to more easily define the q parameter.  It is important that the units of the q
-        parameter and the wavlength match, and it is generally best if both are expressed in
+        parameter and the wavelength match, and it is generally best if both are expressed in
         meters.
 
         :param q: The complex-valued q parameter
@@ -405,4 +405,40 @@ class qParameter(object):
         :rtype: float
         """
         return abs(self.ovlp_field(q2))**2
+
+
+###############################################################################
+# Beam Class
+###############################################################################
+class Beam(qParameter):
+    """ Extension of the qParameter class which includes a position and label
+
+    """
+    def __init__(self, z, label, q=None, wvlnt=None):
+        """ Returns an object in the qParameter class
+
+        It is possible to initialize an empty object so that the set routines (defined below) can
+        be used to more easily define the q parameter.  It is important that the units of the q
+        parameter and the wavelength match, and it is generally best if both are expressed in
+        meters.
+
+        :param z: The position of the q parameter
+        :param label: A string identifier of the q parameter
+        :param q: The complex-valued q parameter
+        :param wvlnt: The wavelength of the radiation
+        :type z: float
+        :type label: str
+        :type q: complex
+        :type wvlnt: float
+        :return: An instance of the Beam class
+        :rtype: Beam
+        """
+        assert type(label) is str
+        try:
+            z = float(z)
+        except ValueError:
+            raise ValueError("z should be a float")
+        super(Beam, self).__init__(q=q, wvlnt=wvlnt)
+        self.z = z
+        self.label = label
 
