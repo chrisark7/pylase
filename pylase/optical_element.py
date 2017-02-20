@@ -51,6 +51,9 @@ class OpticalElement:
         self.position = position
         self.label = label
 
+    def __repr__(self):
+        return "\'{0}\' @ {1:0.2g}".format(self.label, self.position)
+
 
 class ThinLensEL(OpticalElement):
     """ Creates an OpticalElement instance for a thin lens
@@ -178,7 +181,7 @@ class InterfaceEL(OpticalElement):
         :type aoi: float or None
         :type orientation: str
         """
-        ray_matrices = [ray_matrix.InterfaceRM(ior_init, ior_fin, roc=None, aoi=None,
-                 orientation='sagittal')]
+        ray_matrices = [ray_matrix.InterfaceRM(ior_init, ior_fin, roc=roc, aoi=aoi,
+                 orientation=orientation)]
         relative_positions = [0]
         super(InterfaceEL, self).__init__(ray_matrices, relative_positions, z, label)

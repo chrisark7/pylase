@@ -135,8 +135,8 @@ class qParameter(object):
           - **position:** This is the position with respect to the waist.  If it is left as None,
             then it is assumed to be zero.
           - **beamsize:** This is the beam size expressed as the 1/e**2 *radius* (i.e. :math:`1w`,
-            not :math:`2w`). If this is not None, then the rayleigh length is ignroed.
-          - **rayleigh:** This is the rayleight range of the beam and is only used if
+            not :math:`2w`). If this is not None, then the rayleigh length is ignored.
+          - **rayleigh:** This is the rayleigh range of the beam and is only used if
             :code:`beamsize` is None.
 
         :param q: The q parameter
@@ -441,4 +441,13 @@ class Beam(qParameter):
         super(Beam, self).__init__(q=q, wvlnt=wvlnt)
         self.z = z
         self.label = label
+
+    def __repr__(self):
+        """ Defines thre representation of the Beam instance
+        """
+        out = "{0}: {1} @ {2:0.2g}, wvlnt={3:0.3g}".format(self.label,
+                                                           super(Beam, self).__repr__(),
+                                                           self.z,
+                                                           self.wvlnt)
+        return out
 
