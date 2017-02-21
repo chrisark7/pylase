@@ -185,3 +185,21 @@ class InterfaceEL(OpticalElement):
                  orientation=orientation)]
         relative_positions = [0]
         super(InterfaceEL, self).__init__(ray_matrices, relative_positions, z, label)
+
+class NullEL(OpticalElement):
+    """ Crates a null optical element
+    """
+    def __init__(self, z, label):
+        """ Constructs a null optical element
+
+        The null element acts as a placeholder, and does not alter the optical
+        characteristics of the system.
+
+        :param z: position along the optical axis
+        :param label: string label for the interface
+        :type z: float
+        :type label: str
+        """
+        ray_matrices = [ray_matrix.NullRM()]
+        relative_positions = [0]
+        super(NullEL, self).__init__(ray_matrices, relative_positions, z, label)

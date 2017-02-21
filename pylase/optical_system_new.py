@@ -10,7 +10,9 @@ and a Gaussian laser beam.
 """
 
 from bisect import bisect_left
+import warnings
 import numpy as np
+from scipy.optimize import minimize
 from pylase import q_param, ray_matrix, optical_element
 
 __author__ = "Chris Mueller"
@@ -41,13 +43,12 @@ class OpticalSystem:
         """
         # Initialize the beams component and its hash
         self.beams = []
-        self._beam_hash = hash(tuple(self.beams))
+        self._beam_hash = 0
         # Initialize the elements list and the elements hash
-        self.elements = []
-        self._el_hash = hash(tuple(self.elements))
+        self.elements = [optical_element.NullEL(0, 'null')]
+        self._el_hash = 0
         # Initialize the RayMatrixSystem and q parameters
-        self.rms = ray_matrix.RayMatrixSystem()
-        self.all_qs = {}
+        self._update()
 
     ###########################################################################
     # Internal Add/Remove Methods
@@ -64,6 +65,19 @@ class OpticalSystem:
             raise ValueError("beam label is already in use")
         # Append beam to list
         self.beams.append(beam)
+        # Update
+        self._update()
+
+    def _remove_beam(self, label):
+        """ Removes a Beam instance from the list of beams
+
+        :param label: The string label of the beam to remove
+        :type label: str
+        """
+        # Get index
+        bm_ind = self._get_beamindex(label)
+        # Remove beam
+        del self.beams[bm_ind]
         # Update
         self._update()
 
@@ -84,6 +98,19 @@ class OpticalSystem:
         # Update the internal optical system
         self._update()
 
+    def _remove_element(self, label):
+        """ Removes an OpticalElement instance from the list of elements
+
+        :param label: The string label for the element to remove
+        :type label: str
+        """
+        # Get index
+        el_ind = self._get_elindex(label)
+        # Remove element
+        del self.elements[el_ind]
+        # Update
+        self._update()
+
     def _update(self):
         """ Updates the internal optical system when changes are made
 
@@ -92,6 +119,17 @@ class OpticalSystem:
         Namely, it regenerates the RayMatrixSystem and updates the q
         parameters at the key locations.
         """
+        # If elements has more than 1, remove the null element if it exists
+        if len(self.elements) > 1:
+            try:
+                null_ind = next(i for i, v in enumerate(self.elements) if
+                                type(v) is optical_element.NullEL)
+                del self.elements[null_ind]
+            except StopIteration:
+                pass
+        # Add the null element if there are no elements left
+        elif len(self.elements) == 0:
+            self.elements = [optical_element.NullEL(0, 'null')]
         # If the element hash has changed, update elements and beams
         if not hash(tuple(self.elements)) == self._el_hash:
             self.rms = self._calc_ray_matrix_system()
@@ -384,7 +422,7 @@ class OpticalSystem:
     ###########################################################################
     def add_beam_from_parameters(self, z, label, beam_size, distance_to_waist,
                                  wvlnt):
-        """ Adds a beam to the optical system
+        """ Adds a beam to the optical system using common parameters
 
         This method allows the user to add a beam with real-world parameters,
         namely the waist size and the distance to the waist.  Note that **all
@@ -413,6 +451,33 @@ class OpticalSystem:
         # Add the beam to the list
         self._add_beam(beam)
 
+    def add_beam_from_q(self, z, label, q, wvlnt=None):
+        """ Adds a beam to the optical system using the q parameter
+
+        This method allows the user to add a beam using a q parameter.  The q
+        parameter can either be an instance of the qParameter class or a
+        complex number.  In the latter case the wavelength must be specified
+        as well.  If `q` is an instance of the qParameter class, then the
+        `wvlnt` parameter is ignored.
+
+        :param z: location of the q parameter along the optical axis
+        :param label: a string label associated with the beam
+        :param q: either a qParameter instance or a complex number
+        :param wvlnt: the wavelength of the radiation (ignored if `q` is a
+            qParameter instance)
+        :type z: float
+        :type label: str
+        :type q: q_param.qParameter or complex
+        :type wvlnt: float
+        """
+        if type(q) is q_param.qParameter:
+            self._add_beam(q_param.Beam(z, label, q=q))
+        elif type(q) is complex:
+            if wvlnt is None:
+                raise ValueError("wvlnt should be specified for complex q")
+            else:
+                self._add_beam(q_param.Beam(z, label, q=q, wvlnt=wvlnt))
+
     ###########################################################################
     # System Property Calculations
     ###########################################################################
@@ -433,11 +498,63 @@ class OpticalSystem:
         # Get the position number, distance, and ior
         pos_num, dist = self.rms.get_pos_num_and_distance(z)
         ior = self.rms.iors[pos_num]
-        # Get the beam_index
-        beam_ind = self._get_beamindex(beam_label)
         # Get the correct q parameter, add the distance, and scale by the ior
         q = (self.all_qs[beam_label][pos_num] + dist)/ior
         # Return
         return q.w(m2=1)
+
+    def fit_q(self, guess_beam_label, data):
+        """ Uses measured data to fit a beam starting with an initial guess
+
+        This method fits a q parameter to measured data using the `scipy.optimize.minimize`
+        routine.  The optical system needs to have a beam defined which this method will use as
+        its initial guess.  The data should be passed in list of list format with the first
+        element being the position along the optical axis, and the second being the beam size at
+        that position, i.e.
+           - data = [[z_1, w_z], [z_2, w_2], [z_3, w_3], ....]
+
+        :param guess_beam_label: The beam_label of the beam which will be used as a guess
+        :param data: The data to which the beam will be fit
+        :type guess_beam_label: str
+        :type data: list of list of float
+        :return:
+        """
+        # Check format of data
+        try:
+            zs = [x[0] for x in data]
+            ws = [x[1] for x in data]
+        except:
+            raise TypeError('data should be a list of 2-element lists')
+        # Scale beam
+        guess_bm = self.beams[self._get_beamindex(guess_beam_label)]
+        scale_w0 = guess_bm.w0()
+        # Define fitting function
+        def fit_fun(params):
+            """ params = (w, z)
+            """
+            # Waist size can't be less than zero
+            if params[0] < 0:
+                params[0] = 1e-6*scale_w0
+            # Add the beam
+            self.add_beam_from_parameters(z=guess_bm.position,
+                                          label='fitting_beam',
+                                          beam_size=params[0] * scale_w0,
+                                          distance_to_waist=params[1],
+                                          wvlnt=guess_bm.get_wvlnt())
+            # Calculate sum of squares of differences
+            ssq = sum(((self.w(z=z, beam_label='fitting_beam') - w)**2 for z, w in zip(zs, ws)))
+            # Remove beam
+            self._remove_beam(label='fitting_beam')
+            return ssq
+        # Minimize the sum of squares
+        res = minimize(fit_fun, (1, guess_bm.z()), tol=1e-5, method='Nelder-Mead')
+        if res.success:
+            print(res.message)
+        else:
+            warnings.warn('Optimization failed with message: {0}'.format(res.message))
+        # Return a q parameter
+        out_q = q_param.qParameter(wvlnt=guess_bm.get_wvlnt())
+        out_q.set_q(beamsize=res.x[0]*scale_w0, position=res.x[1])
+        return out_q
 
 

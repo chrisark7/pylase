@@ -428,7 +428,7 @@ class Beam(qParameter):
         :param wvlnt: The wavelength of the radiation
         :type z: float
         :type label: str
-        :type q: complex
+        :type q: complex or qParameter
         :type wvlnt: float
         :return: An instance of the Beam class
         :rtype: Beam
@@ -438,7 +438,10 @@ class Beam(qParameter):
             position = float(position)
         except ValueError:
             raise ValueError("z should be a float")
-        super(Beam, self).__init__(q=q, wvlnt=wvlnt)
+        if type(q) is qParameter:
+            super(Beam, self).__init__(q=q.get_q(), wvlnt=q.get_wvlnt())
+        else:
+            super(Beam, self).__init__(q=q, wvlnt=wvlnt)
         self.position = position
         self.label = label
 
