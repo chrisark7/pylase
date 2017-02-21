@@ -13,6 +13,7 @@ transform through an optical system.
 """
 
 import warnings
+from bisect import bisect_left
 import numpy as np
 
 __author__ = "Chris Mueller"
@@ -415,7 +416,6 @@ class RayMatrixSystem:
         else:
             print(out)
 
-
     ###########################################################################
     # Extract Matrices
     ###########################################################################
@@ -486,6 +486,49 @@ class RayMatrixSystem:
             else:
                 dz.append([pos, pos + rm.dist_internal])
         return dz
+
+    def get_ior(self, z):
+        """ Returns the index of refraction at location z
+
+        :param z: location along the optical axis
+        :type z: float
+        :return: index of refraction
+        :rtype: float
+        """
+        # Calculate position number
+        pos_num = bisect_left(self.positions, z)
+        return self.iors[pos_num]
+
+    def get_pos_num_and_distance(self, z):
+        """ Returns the nearest position number and the distance to given location
+
+        Recall that the position number corresponds to the slice in the list
+        of ray matrices and is immediately after the preceding ray matrix
+        except in the case of the 0th position which is immeditely befort the
+        0th ray matrix.
+
+        This method takes in a location along the optical axis and returns 2
+        pieces of information:
+          1. The nearest position number to that location
+          2. The distance from that position number to the specified location
+
+        The distance will always be positive, unless the specified location is
+        less than the location of the first ray matrix.
+
+        :param z: location along the optical axis
+        :type z: float
+        :return: (pos_num, distance)
+        :rtype: (int, float)
+        """
+        # Calculate position number
+        pos_num = bisect_left(self.positions, z)
+        # Calculate distance
+        if pos_num == 0:
+            dist = z - self.positions[pos_num]
+        else:
+            dist = z - self.positions[pos_num - 1]
+        # Return
+        return pos_num, dist
 
     def get_matrix(self, z_from, z_to, inverse=False, pos_num=False):
         """ Returns the matrix from `z_from` to `z_to`

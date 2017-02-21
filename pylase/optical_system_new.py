@@ -113,6 +113,40 @@ class OpticalSystem:
             # Update hash
             self._beam_hash = hash(tuple(self.beams))
 
+    def _get_beamindex(self, beam_label):
+        """ Returns the index of the beam for a given beam label
+
+        :param beam_label: The label used to identify the beam
+        :type beam_label: str
+        :return: beam index
+        :rtype: int
+        """
+        assert type(beam_label) is str
+        try:
+            beam_ind = next((i for i, v in enumerate(self.beams)
+                             if v.label == beam_label))
+        except StopIteration:
+            raise ValueError("beam_label {0} does not match any beams".format(
+                beam_label))
+        return beam_ind
+
+    def _get_elindex(self, el_label):
+        """ Returns the index of the element for a given element label
+
+        :param el_label: The label used to identify the element
+        :type el_label: str
+        :return: beam index
+        :rtype: int
+        """
+        assert type(el_label) is str
+        try:
+            el_ind = next((i for i, v in enumerate(self.elements)
+                           if v.label == el_label))
+        except StopIteration:
+            raise ValueError("el_label {0} does not match any elements".format(
+                el_label))
+        return el_ind
+
     ###########################################################################
     # System Calculation
     ###########################################################################
@@ -378,3 +412,32 @@ class OpticalSystem:
         beam.set_q(beamsize=beam_size, position=distance_to_waist)
         # Add the beam to the list
         self._add_beam(beam)
+
+    ###########################################################################
+    # System Property Calculations
+    ###########################################################################
+    def w(self, z, beam_label):
+        """ Calculates the 1/e^2 beam radius at position z
+
+        This method is one of the most commonly used methods in the
+        OpticalSystem package.  It calculates the 1/e^2 beam radius at the
+        position `z` along the optical axis.
+
+        :param z: location along the optical axis
+        :param beam_label: the label given to the beam of interest
+        :type z: float
+        :type beam_label: str
+        :return: 1/e^2 beam radius at specified position
+        :rtype: float
+        """
+        # Get the position number, distance, and ior
+        pos_num, dist = self.rms.get_pos_num_and_distance(z)
+        ior = self.rms.iors[pos_num]
+        # Get the beam_index
+        beam_ind = self._get_beamindex(beam_label)
+        # Get the correct q parameter, add the distance, and scale by the ior
+        q = (self.all_qs[beam_label][pos_num] + dist)/ior
+        # Return
+        return q.w(m2=1)
+
+
