@@ -89,6 +89,8 @@ def mat_sellmeier_lbo(wvlnt, temp):
     """
     # Room temp (C)
     rmTemp = 21
+    # Convert wvlnt to microns
+    wvlnt *= 1e6
     # Tang et. al. data
     '''
     nx = (2.4517 - 0.01177/( 0.00921  - wvlnt**2) - 0.00960 * wvlnt**2)
