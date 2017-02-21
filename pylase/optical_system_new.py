@@ -45,8 +45,9 @@ class OpticalSystem:
         # Initialize the elements list and the elements hash
         self.elements = []
         self._el_hash = hash(tuple(self.elements))
-        # Initialize the RayMatrixSystem
+        # Initialize the RayMatrixSystem and q parameters
         self.rms = ray_matrix.RayMatrixSystem()
+        self.all_qs = {}
 
     ###########################################################################
     # Internal Add/Remove Methods
@@ -63,6 +64,8 @@ class OpticalSystem:
             raise ValueError("beam label is already in use")
         # Append beam to list
         self.beams.append(beam)
+        # Update
+        self._update()
 
     def _add_element(self, element):
         """ Adds an OpticalElement instance to the list of elements
@@ -78,6 +81,37 @@ class OpticalSystem:
         self.elements.append(element)
         # Sort list to maintain order
         self.elements.sort(key=lambda x: x.position)
+        # Update the internal optical system
+        self._update()
+
+    def _update(self):
+        """ Updates the internal optical system when changes are made
+
+        This routine is run whenever the system is modified to keep the
+        internally held optical system up to date with the optical elements.
+        Namely, it regenerates the RayMatrixSystem and updates the q
+        parameters at the key locations.
+        """
+        # If the element hash has changed, update elements and beams
+        if not hash(tuple(self.elements)) == self._el_hash:
+            self.rms = self._calc_ray_matrix_system()
+            if self.beams:
+                self.all_qs = {beam.label: self._calc_all_qs(beam)
+                               for beam in self.beams}
+            else:
+                self.all_qs = {}
+            # Update hashes
+            self._el_hash = hash(tuple(self.elements))
+            self._beam_hash = hash(tuple(self.beams))
+        # If only the beam hash has changed, update beams
+        elif not hash(tuple(self.beams)) == self._beam_hash:
+            if self.beams:
+                self.all_qs = {beam.label: self._calc_all_qs(beam)
+                               for beam in self.beams}
+            else:
+                self.all_qs = {}
+            # Update hash
+            self._beam_hash = hash(tuple(self.beams))
 
     ###########################################################################
     # System Calculation
@@ -133,9 +167,12 @@ class OpticalSystem:
         :rtype: ray_matrix.RayMatrixSystem
         """
         # Get the ray matrices
-        mats = self._calc_all_matrices()
-        return ray_matrix.RayMatrixSystem(ray_matrices=[x[1] for x in mats],
-                                          positions=[x[0] for x in mats])
+        if not self.elements:
+            return ray_matrix.RayMatrixSystem()
+        else:
+            mats = self._calc_all_matrices()
+            return ray_matrix.RayMatrixSystem(ray_matrices=[x[1] for x in mats],
+                                              positions=[x[0] for x in mats])
 
     def _calc_all_qs(self, beam):
         """ Propagates the q parameter to all critical locations in the system
@@ -154,13 +191,30 @@ class OpticalSystem:
         assert type(beam) is q_param.Beam
         # Get all ray matrices and identify location of q parameter
         mats = self._calc_all_matrices()
-        ind = bisect_left((x[0] for x in mats), beam.position)
+        ind_from = bisect_left([x[0] for x in mats], beam.position)
         # Propagate q parameter to nearest location
-        q = beam.get_q()
-        if ind == 0:
-            q = q + mats[ind][0] - beam.position
+        if ind_from == 0:
+            beam = beam + mats[ind_from][0] - beam.position
         else:
-            q = q + mats[ind-1][0] - beam.position
+            beam = beam + mats[ind_from-1][0] - beam.position
+        # Calculate q parameters at all locations
+        q_out = []
+        for ind_to in range(0, len(mats)+1):
+            # Get composite ray matrix
+            if ind_from > ind_to:
+                mat = self.rms.get_matrix(z_from=ind_from,
+                                          z_to=ind_to,
+                                          inverse=True,
+                                          pos_num=True)
+            else:
+                mat = self.rms.get_matrix(z_from=ind_from,
+                                          z_to=ind_to,
+                                          inverse=False,
+                                          pos_num=True)
+            # Calculate new q parameter
+            q_out.append(self._calc_prop_q(beam, mat))
+        # Return
+        return q_out
 
     ###########################################################################
     # Add Optical Elements
