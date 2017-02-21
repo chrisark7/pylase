@@ -464,7 +464,7 @@ class RayMatrixSystem:
                 dz.append([pos, pos + rm.dist_internal])
         return dz
 
-    def get_matrix(self, z_from, z_to, inverse=False):
+    def get_matrix(self, z_from, z_to, inverse=False, pos_num=False):
         """ Returns the matrix from `z_from` to `z_to`
 
         This method returns the matrix between any two points in the ray matrix
@@ -480,6 +480,13 @@ class RayMatrixSystem:
         range since the RayMatrixSystem does not have knowledge of how the ray
         transforms within the element.
 
+        If the `pos_num` variable is True, then `z_from` and `z_to` will be
+        treated as position numbers instead of distances.  Position numbers
+        specify slices in the RayMatrixSystem between the individual ray
+        matrices.  The 0th position is immediately in front of the 0th matrix
+        while all of the other N positions are immediately behind the N-1
+        matrix.
+
         :param z_from: starting position along the optical axis
         :param z_to: ending position along the optical axis
         :param inverse: if True, then the inverse of the matrix is returned
@@ -489,6 +496,20 @@ class RayMatrixSystem:
         :return: ray matrix between the two points
         :rtype: np.matrix
         """
+        # If pos_num, ensure they are integers
+        if pos_num:
+            try:
+                z_to, z_from = int(z_to), int(z_from)
+            except ValueError:
+                raise ValueError("z_to and z_from should be integers when "
+                                 "pos_num=True")
+            if z_to < 0 or z_from < 0:
+                raise ValueError("z_to and z_from should be at least 0 when "
+                                 "pos_num=True")
+            elif z_to > len(self.ray_matrices) or z_from > len(self.ray_matrices):
+                raise ValueError("z_to and z_from should be no more than the "
+                                 "the total number of elements when pos_num=True")
+
         # Is it backwards
         backwards = z_to < z_from
         if backwards:
@@ -496,44 +517,64 @@ class RayMatrixSystem:
         else:
             z_1, z_2 = z_from, z_to
         # Get included elements, positions, and internal distances
-        els = [i for i, v in enumerate(self.positions) if z_1 < v < z_2]
+        if pos_num:
+            els = list(range(z_1, z_2))
+        else:
+            els = [i for i, v in enumerate(self.positions) if z_1 < v < z_2]
         dists = self._get_distances()
         dzs = self._get_deadzones()
         # Check if z_1 or z_2 are in a deadzone
         dz_1, delt_1 = None, 0
         dz_2 = None
-        ii = 0
-        for dz in dzs:
-            if dz is None:
+        if not pos_num:
+            ii = 0
+            for dz in dzs:
+                if dz is None:
+                    ii += 1
+                    pass
+                elif dz[0] < z_1 < dz[1]:
+                    delt_1 = dz[1] - z_1
+                    dz_1 = ii
+                elif dz[0] < z_2 < dz[1]:
+                    dz_2 = ii
                 ii += 1
-                pass
-            elif dz[0] < z_1 < dz[1]:
-                delt_1 = dz[1] - z_1
-                dz_1 = ii
-            elif dz[0] < z_2 < dz[1]:
-                dz_2 = ii
-            ii += 1
         # Gather matrices
-        # If no elements were included, then just one translation matrix
-        if not els:
-            if (dz_1 is not None) and (dz_2 is not None):
+        if pos_num:
+            # If no elements were included, then just one translation matrix
+            if not els:
                 mats = [TranslationRM(0)]
-            elif dz_1 is not None:
-                mats = [TranslationRM(z_2 - z_1 - delt_1)]
             else:
-                mats = [TranslationRM(z_2 - z_1)]
+                # Add first translation if the initial element isn't the 0th element
+                if not els[0] == 0:
+                    mats = [TranslationRM(dists[els[0]-1][1])]
+                else:
+                    mats = []
+                # Add other elements with their translations
+                for i, el in enumerate(els):
+                    mats.append(self.ray_matrices[el])
+                    if not i == len(els) - 1:
+                        mats.append(TranslationRM(dists[el][1]))
         else:
-            # Add first translation
-            mats = [TranslationRM(self.positions[els[0]] - z_1 - delt_1)]
-            # Append middle section
-            for i, el in enumerate(els):
-                mats.append(self.ray_matrices[el])
-                if not i == len(els) - 1:
-                    mats.append(TranslationRM(dists[el][1]))
-            # Append final translation
-            if dz_2 is None:
-                mats.append(TranslationRM(z_2 - self.positions[els[-1]] -
-                                          self.ray_matrices[els[-1]].dist_internal))
+            # If no elements were included, then just one translation matrix
+            if not els:
+                if (dz_1 is not None) and (dz_2 is not None):
+                    mats = [TranslationRM(0)]
+                elif dz_1 is not None:
+                    mats = [TranslationRM(z_2 - z_1 - delt_1)]
+                else:
+                    mats = [TranslationRM(z_2 - z_1)]
+            else:
+                # Add first translation
+                mats = [TranslationRM(self.positions[els[0]] - z_1 - delt_1)]
+                # Append middle section
+                for i, el in enumerate(els):
+                    mats.append(self.ray_matrices[el])
+                    if not i == len(els) - 1:
+                        mats.append(TranslationRM(dists[el][1]))
+                # Append final translation
+                if dz_2 is None:
+                    mats.append(TranslationRM(z_2 - self.positions[els[-1]] -
+                                              self.ray_matrices[els[-1]].dist_internal))
         # Build total matrix
         if backwards:
             mat = self._multiply_matrices(list(reversed(mats)), inverse=inverse)
