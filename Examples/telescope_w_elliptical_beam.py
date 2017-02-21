@@ -5,7 +5,7 @@ plots the beam size through the system.
 """
 
 import numpy as np
-from pylase.optical_system import OpticalSystem
+from pylase.optical_system_old import OpticalSystem
 
 __author__ = "Chris Mueller"
 __status__ = "Example"

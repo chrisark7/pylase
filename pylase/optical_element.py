@@ -43,7 +43,7 @@ class OpticalElement:
         for rm in ray_matrices:
             assert issubclass(type(rm), ray_matrix.RayMatrix)
         assert len(ray_matrices) == len(relative_positions)
-        assert type(position) in [float, int]
+        assert issubclass(type(position), float) or issubclass(type(position), int)
         assert type(label) is str
         # Assignment
         self.ray_matrices = ray_matrices
