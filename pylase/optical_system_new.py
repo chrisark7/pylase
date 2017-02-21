@@ -45,6 +45,8 @@ class OpticalSystem:
         # Initialize the elements list and the elements hash
         self.elements = []
         self._el_hash = hash(tuple(self.elements))
+        # Initialize the RayMatrixSystem
+        self.rms = ray_matrix.RayMatrixSystem()
 
     ###########################################################################
     # Internal Add/Remove Methods

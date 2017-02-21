@@ -48,6 +48,19 @@ class TranslationRM(RayMatrix):
         self.parameters = ["d={0:0.3g}".format(distance)]
 
 
+class NullRM(TranslationRM):
+    """ A Null RayMatrix, i.e. the identity matrix
+    """
+    def __init__(self):
+        """ Defines the null RayMatrix
+        """
+        super(NullRM, self).__init__(0)
+        self.matrix = np.matrix([[1, 0], [0, 1]], dtype=np.float64)
+        self.dist_internal = 0
+        self.type = "Null"
+        self.parameters = []
+
+
 class ThinLensRM(RayMatrix):
     """ RayMatrix for a thin lens
     """
@@ -251,8 +264,8 @@ class RayMatrixSystem:
         """
         # Check for Nones
         if ray_matrices is None:
-            self.ray_matrices = None
-            self.positions = None
+            self.ray_matrices = [NullRM()]
+            self.positions = [0]
         # Check if the objects are iterable
         elif not hasattr(ray_matrices, "__iter__"):
             if not issubclass(type(ray_matrices), RayMatrix):
@@ -297,6 +310,13 @@ class RayMatrixSystem:
             2. Calculates the index of refraction at all points in the system
         """
         if self.ray_matrices is not None:
+            # Remove Null matrix if more than 1 matrix
+            if len(self.ray_matrices) > 1:
+                null_num = [i for i, v in enumerate(self.ray_matrices) \
+                            if v.type == "Null"]
+                for i in null_num:
+                    del self.positions[i]
+                    del self.ray_matrices[i]
             # Sort by position
             indices = sorted(range(len(self.positions)),
                              key=lambda x: self.positions[x])
@@ -349,7 +369,10 @@ class RayMatrixSystem:
         # Determine lengths
         col_len = [len(str(len(self.positions)))]
         col_len.append(max(len(x.type) for x in self.ray_matrices))
-        col_len.append(max(len(par) for rm in self.ray_matrices for par in rm.parameters))
+        try:
+            col_len.append(max(len(par) for rm in self.ray_matrices for par in rm.parameters))
+        except ValueError:
+            col_len.append(0)
         col_len.append(max(len("{0:0.3g}".format(x)) for x in self.positions))
         col_len.append(max(len("{0:0.3g}".format(x)) for x in self.iors))
         # Compare lengths to labels
@@ -615,6 +638,9 @@ class RayMatrixSystem:
         """
         del self.ray_matrices[el_num]
         del self.positions[el_num]
+        # If no matrices are left, add the null matrix
+        if len(self.ray_matrices) == 0:
+            self._add_element(0, NullRM())
         self._update()
 
     def add_thin_lens(self, z, f):
