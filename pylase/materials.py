@@ -1,57 +1,27 @@
 """ Useful routines for calculating properties of optical materials
 
-This module defines a number of useful routines for calculating properties
+Many of the routines defined in this package are focused on calculating the
+optical properties of common nonlinear optical materials.
+
+The module defines a number of useful routines for calculating properties
 of optical materials.  It contains:
   - Fresnel equations for calculating the reflectivity of an uncoated optical
     surface based on its index of refraction
   - Sellmeier equations for calculating the index of refraction as a function
     of wavelength for some common materials
-  -
+  - A routine for calculating the principle indices of refraction in an
+    arbitrary direction through a uniaxial or biaxial optical crystal
+  - A group of routines to calculate the walk-off angle between the k-vector
+    and the Poynting vector in uniaxial and biaxial optical crystals.
 """
 
 import cmath
 import warnings
+from numpy import sin, cos, arccos, arctan, mean, isclose
 from scipy.integrate import quad
 
 __author__ = "Chris Mueller"
 __status__ = "Development"
-
-
-###############################################################################
-# Common Calculations
-###############################################################################
-def calc_fresnel_reflectivity(theta, n_init, n_fin):
-    """ Calculate the Fresnel reflectivity vs. angle for given iors
-
-    This routine returns the Fresnel reflectifity for both s and p polarized
-    light.  The inputs are the input angle of incidence in radians, and the
-    initial and final indices of refraction
-
-    Note that the amplitude reflectivity is returned as a possibly complex
-    number, so the power reflectivity, if desired, must be calculated with
-    R=|r|**2.
-
-    :param theta: The angle of incidence of the radiation in radians
-    :param n_init: The initial index of refraction
-    :param n_fin: The final index of refraction
-    :type theta: float
-    :type n_init: float
-    :type n_fin: float
-    :return: (s reflection coefficient, p reflection coefficient
-    :rtype: (complex, complex)
-    """
-    # Calculate the transmitted angle from Snell's law
-    theta_t = cmath.asin(n_init/n_fin * cmath.sin(theta))
-    # Check for total internal reflection
-    if not theta_t.imag == 0:
-        warnings.warn("Warning: The chosen values give total internal reflection")
-    # Calculate the reflection coefficients
-    rs = (n_init*cmath.cos(theta) - n_fin*cmath.cos(theta_t))/\
-         (n_init*cmath.cos(theta) + n_fin*cmath.cos(theta_t))
-    rp = (n_fin*cmath.cos(theta) - n_init*cmath.cos(theta_t))/\
-         (n_fin*cmath.cos(theta) + n_init*cmath.cos(theta_t))
-    # Return
-    return rs, rp
 
 
 ###############################################################################
@@ -223,3 +193,278 @@ def mat_sellmeier_fusedsilica(wvlnt):
              (0.8974794 * wvlnt**2)/(wvlnt**2 - 9.896161**2))**(1/2)
     # Return
     return n, n, n
+
+
+###############################################################################
+# Common Calculations
+###############################################################################
+def calc_fresnel_reflectivity(theta, n_init, n_fin):
+    """ Calculate the Fresnel reflectivity vs. angle for given iors
+
+    This routine returns the Fresnel reflectifity for both s and p polarized
+    light.  The inputs are the input angle of incidence in radians, and the
+    initial and final indices of refraction
+
+    Note that the amplitude reflectivity is returned as a possibly complex
+    number, so the power reflectivity, if desired, must be calculated with
+    R=|r|**2.
+
+    :param theta: The angle of incidence of the radiation in radians
+    :param n_init: The initial index of refraction
+    :param n_fin: The final index of refraction
+    :type theta: float
+    :type n_init: float
+    :type n_fin: float
+    :return: (s reflection coefficient, p reflection coefficient
+    :rtype: (complex, complex)
+    """
+    # Calculate the transmitted angle from Snell's law
+    theta_t = cmath.asin(n_init/n_fin * cmath.sin(theta))
+    # Check for total internal reflection
+    if not theta_t.imag == 0:
+        warnings.warn("Warning: The chosen values give total internal reflection")
+    # Calculate the reflection coefficients
+    rs = (n_init*cmath.cos(theta) - n_fin*cmath.cos(theta_t))/\
+         (n_init*cmath.cos(theta) + n_fin*cmath.cos(theta_t))
+    rp = (n_fin*cmath.cos(theta) - n_init*cmath.cos(theta_t))/\
+         (n_fin*cmath.cos(theta) + n_init*cmath.cos(theta_t))
+    # Return
+    return rs, rp
+
+
+def calc_principle_iors(theta, phi, n1, n2, n3):
+    """ Calculates the principle indices of refraction of a crystal
+
+    This function takes in the principle indices of refraction of a uniaxial
+    or biaxial optical crystal, and calculates the principle indices of
+    refraction in an arbitrary direction through the crystal.  The direction
+    is specified by theta and phi which are in radians.
+
+    Theta and phis are defined in the usual way for crystalline optics; theta
+    is the angle with respect to the z axis (with ior n3) and phi is the angle
+    with respect to the x axis (with ior n1) in the xy plane.  Note that, as
+    usual for crystalline optics, the axes are defined by n1 < n2 < n3 where
+    x corresponds to n1, y to n2, and z to n3.
+
+    :param theta: The angle with the z axis in radians
+    :param phi: The angle with the x axis in radians (in the xy plane)
+    :param n1: The index of refraction of the x axis (n1<n2<n3)
+    :param n2: The index of refraction of the y axis (n1<n2<n3)
+    :param n3: The index of refraction of the z axis (n1<n2<n3)
+    :type theta: float
+    :type phi: float
+    :type n1: float
+    :type n2: float
+    :type n3: float
+    :return: (smaller ior, larger ior)
+    :rtype: (float, float)
+    """
+    # Calculate the squared components of the unit vector
+    u1s = (sin(theta) * cos(phi))**2
+    u2s = (sin(theta) * sin(phi))**2
+    u3s = cos(theta)**2
+    # Square the components of the indicatrix
+    n1s, n2s, n3s = n1**2, n2**2, n3**2
+    # Calculate the A, B, and C elements of the quadratic equation in n**2
+    a = n1s * (u2s + u3s - 1) + n2s * (u1s + u3s - 1) + n3s * (u1s + u2s - 1)
+    b = n1s * n2s * (1 - u3s) + n2s * n3s * (1 - u1s) + n3s * n1s * (1 - u2s)
+    c = -1 * n1s * n2s * n3s
+    # Find the two roots of the quadratic equation (and take the sqrt)
+    if (b**2 - 4*a*c) < 0:
+        np1 = (-b / (2*a))**(1/2)
+        np2 = (-b / (2*a))**(1/2)
+    else:
+        np1 = (-b / (2*a) + (b**2 - 4*a*c)**(1/2) / (2*a))**(1/2)
+        np2 = (-b / (2*a) - (b**2 - 4*a*c)**(1/2) / (2*a))**(1/2)
+    # Return
+    return np1, np2
+
+
+###############################################################################
+# Walk-off Calculations
+###############################################################################
+def walkoff_fromprop(theta, phi, n1, n2, n3):
+    """ Calculate the walk-off angle between k-vector and Poynting vector
+
+    The calculations are taken from [1].
+
+    This function takes in the principle indices of refraction along the
+    three axes as well as an arbitrary direction defined by theta and phi.
+    Generally n1 < n2 < n3.  Theta and phi are referenced in the usual way;
+    theta is the angle with respect to n3 and phi is the angle between the
+    plane containing the n3 axis and the direction of propagation and the n1
+    axis.
+
+    The function returns two angles (in radians).  The first one corresponds
+    to the polarization with the lower index of refraction and the second
+    corresponds to the polarization with the higher index of refraction.  These
+    indices are calculated with `calc_principle_iors`.
+
+    Note that the walk-off angles returned by this function are generally
+    not the walk-off angles of interest.  Most often one is actually interested
+    in the walk-off angles between two different beams and not between the beam
+    and its direction of propagation.  In this sense, this function if mostly a
+    helper function for the functions which calculate the more interesting
+    walk-off angles.  Also note that this function returns the angle of the
+    walk-off and the direction of the walk-off is always in the plane of
+    the polarization.
+
+      [1]: Brehat, F., & Wyncke, B. (1999). Calculation of double-refraction
+           walk-off angle along the phase-matching directions in non-linear
+           biaxial crystals. Journal of Physics B, 22, 1891–1898.
+           doi:10.1088/0953-4075/22/11/020
+
+    :param theta: The angle with the z axis in radians
+    :param phi: The angle with the x axis in radians (in the xy plane)
+    :param n1: The index of refraction of the x axis (n1<n2<n3)
+    :param n2: The index of refraction of the y axis (n1<n2<n3)
+    :param n3: The index of refraction of the z axis (n1<n2<n3)
+    :type theta: float
+    :type phi: float
+    :type n1: float
+    :type n2: float
+    :type n3: float
+    :return: dictionary with ior as key and walk-off as value
+    :rtype: dict
+    """
+    # Define a function to do the bulk of the calculation
+    def wo_int(npn, s1, s2, s3, n1, n2, n3):
+        val = arctan(
+            ((n1**2 - npn**2) * (n2**2 - npn**2) * (n3**2 - npn**2)) *
+            (s1**2 * n1**4 * (n2**2 - npn**2)**2 * (n3**2 - npn**2)**2 +
+             s2**2 * n2**4 * (n1**2 - npn**2)**2 * (n3**2 - npn**2)**2 +
+             s3**2 * n3**4 * (n1**2 - npn**2)**2 * (n2**2 - npn**2)**2)**(-1/2))
+        return val
+    # Calculate the components of the unit vector
+    u1s = sin(theta) * cos(phi)
+    u2s = sin(theta) * sin(phi)
+    u3s = cos(theta)
+    # Calculate the principle indices of refraction
+    nps = calc_principle_iors(theta, phi, n1, n2, n3)
+    # Ensure that np1 is greater than np2
+    nps = list(nps)
+    nps.sort()
+    # Calculate the two angles
+    ang = dict()
+    for indp in nps:
+        bool_val = (isclose(indp, n1, rtol=1e-10, atol=1e-10) or
+                    isclose(indp, n2, rtol=1e-10, atol=1e-10) or
+                    isclose(indp, n3, rtol=1e-10, atol=1e-10))
+        if bool_val:
+            ang[indp] = 0
+        else:
+            ang[indp] = wo_int(indp, u1s, u2s, u3s, n1, n2, n3)
+    # Return
+    return ang[nps[0]], ang[nps[1]]
+
+
+def walkoff_shg_type1(theta, phi, n1x, n1y, n1z, n2x, n2y, n2z):
+    """ Calculate the walk-off angle for Type I SHG
+
+    This function calculates the walk-off angle of interest in type 1 second
+    harmonic generation.  This is the walk-off angle between the higher index
+    of refraction for the fundamental and the lower index of refraction for the
+    second harmonic.  The calculation relies on `walkoff_fromprop` and is taken
+    from [1].
+
+    The function also checks that the two indices of refraction are near
+    each other and prints a warning to the user if not.
+
+      [1]: Brehat, F., & Wyncke, B. (1999). Calculation of double-refraction
+           walk-off angle along the phase-matching directions in non-linear
+           biaxial crystals. Journal of Physics B, 22, 1891–1898.
+           doi:10.1088/0953-4075/22/11/020
+
+    :param theta: The angle with the z axis in radians
+    :param phi: The angle with the x axis in radians (in the xy plane)
+    :param n1x: The index of refraction of the x axis, fundamental
+    :param n1y: The index of refraction of the y axis, fundamental
+    :param n1z: The index of refraction of the z axis, fundamental
+    :param n2x: The index of refraction of the x axis, second harmonic
+    :param n2y: The index of refraction of the y axis, second harmonic
+    :param n2z: The index of refraction of the z axis, second harmonic
+    :type theta: float
+    :type phi: float
+    :type n1x: float
+    :type n1y: float
+    :type n1z: float
+    :type n2x: float
+    :type n2y: float
+    :type n2z: float
+    :return: The walk-off angle between the two beams in radians
+    :rtype: float
+    """
+    # Get the principle indices of refraction
+    np11, np12 = calc_principle_iors( theta, phi, n1x, n1y, n1z)
+    np21, np22 = calc_principle_iors( theta, phi, n2x, n2y, n2z)
+    np1 = max([np11, np12])
+    np2 = min([np21, np22])
+    # Check that the upper of the fundamental and the lower of the harmonic are
+    # within 1e-3 of each other
+    dif = abs(np1 - np2)
+    if dif > 1e-3:
+        warnings.warn("Warning: fundamental ({0:0.4f}) and harmonic ({1:0.4f}) "
+                      "indices disagree by {2:0.4f}".format(np1, np2, dif))
+    # Calculate the individual walk-off angles
+    unused, ang1 = walkoff_fromprop(theta, phi, n1x, n1y, n1z)
+    ang2, unused = walkoff_fromprop(theta, phi, n2x, n2y, n2z)
+    # Calculate the differential walk-off angle
+    ang = arccos(cos(ang1) * cos(ang2))
+    # Return
+    return ang
+
+
+def walkoff_shg_type2(theta, phi, n1x, n1y, n1z, n2x, n2y, n2z):
+    """ Calculate the walk-off angle for Type I SHG
+
+    This function calculates the walk-off angle of interest in type 2 second
+    harmonic generation.  This is the walk-off angle between the average index
+    of refraction for the fundamental and the lower index of refraction for the
+    second harmonic.    The calculation relies on `walkoff_fromprop` and is taken
+    from [1].
+
+    The function also checks that the two indices of refraction are near
+    each other and prints a warning to the user if not.
+
+      [1]: Brehat, F., & Wyncke, B. (1999). Calculation of double-refraction
+           walk-off angle along the phase-matching directions in non-linear
+           biaxial crystals. Journal of Physics B, 22, 1891–1898.
+           doi:10.1088/0953-4075/22/11/020
+
+    :param theta: The angle with the z axis in radians
+    :param phi: The angle with the x axis in radians (in the xy plane)
+    :param n1x: The index of refraction of the x axis, fundamental
+    :param n1y: The index of refraction of the y axis, fundamental
+    :param n1z: The index of refraction of the z axis, fundamental
+    :param n2x: The index of refraction of the x axis, second harmonic
+    :param n2y: The index of refraction of the y axis, second harmonic
+    :param n2z: The index of refraction of the z axis, second harmonic
+    :type theta: float
+    :type phi: float
+    :type n1x: float
+    :type n1y: float
+    :type n1z: float
+    :type n2x: float
+    :type n2y: float
+    :type n2z: float
+    :return: The walk-off angle between the two beams in radians
+    :rtype: float
+    """
+    # Get the principle indices of refraction
+    np11, np12 = calc_principle_iors( theta, phi, n1x, n1y, n1z)
+    np21, np22 = calc_principle_iors( theta, phi, n2x, n2y, n2z)
+    np1 = mean([np11, np12])
+    np2 = min([np21, np22])
+    # Check that the upper of the fundamental and the lower of the harmonic are
+    # within 1e-3 of each other
+    dif = abs(np1 - np2)
+    if dif > 1e-3:
+        warnings.warn("Warning: fundamental ({0:0.4f}) and harmonic ({1:0.4f}) "
+                      "indices disagree by {2:0.4f}".format(np1, np2, dif))
+    # Calculate the individual walkoff angles
+    unused, ang1 = walkoff_fromprop(theta, phi, n1x, n1y, n1z)
+    ang2, unused = walkoff_fromprop(theta, phi, n2x, n2y, n2z)
+    # Calculate the differential walkoff angle
+    ang = arccos(cos(ang1) * cos(ang2))
+    # Return
+    return ang
