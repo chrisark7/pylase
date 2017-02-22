@@ -53,6 +53,7 @@ def calc_fresnel_reflectivity(theta, n_init, n_fin):
     # Return
     return rs, rp
 
+
 ###############################################################################
 # Materials Properties
 ###############################################################################
@@ -117,3 +118,108 @@ def mat_sellmeier_lbo(wvlnt, temp):
     nz = nz0 + quad(dnzdT, rmTemp, temp)[0]
     # Return
     return nx, ny, nz
+
+
+def mat_sellmeier_bbo(wvlnt):
+    """ Principal indices of refraction of BBO vs. wavelength
+
+    This function calculates the three principle indices of refraction for
+    BBO from the Sellmeier equations given in [1].
+
+      [1]: Eimerl, D., Davis, L., Velsko, S., Graham, E. K., & Zalkin, a.
+           (1987). Optical, mechanical, and thermal properties of barium
+           borate. Journal of Applied Physics, 62(5), 1968–1983.
+           doi:10.1063/1.339536.  Retrieved from http://refractiveindex.info/
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :type wvlnt: float
+    :return: (nx, ny, nz)
+    :rtype: (float, float, float)
+    """
+    # Convert wvlnt to microns
+    wvlnt *= 1e6
+    # Calculate the three indices
+    nx = (2.3753 + 0.01224/(wvlnt**2 - 0.01667) - 0.01516 * wvlnt**2)**(1/2)
+    ny = nx
+    nz = (2.7359 - 0.01878/(wvlnt**2 - 0.01822) - 0.01354 * wvlnt**2)**(1/2)
+    # Return
+    return nx, ny, nz
+
+
+def mat_sellmeier_clbo( wvlnt):
+    """ Principle indices of refraction of CLBO vs. wavelength
+
+    This function calculates the three principle indices of refraction for
+    BBO from the Sellmeier equations given in [1].
+
+      [1]: Eimerl, D., Davis, L., Velsko, S., Graham, E. K., & Zalkin, a.
+           (1987). Optical, mechanical, and thermal properties of barium
+           borate. Journal of Applied Physics, 62(5), 1968–1983.
+           doi:10.1063/1.339536.  Retrieved from http://refractiveindex.info/
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :type wvlnt: float
+    :return: (nx, ny, nz)
+    :rtype: (float, float, float)
+    """
+    # Convert wvlnt to microns
+    wvlnt *= 1e6
+    # Calculate the three indices
+    nx = (1.458830 + 0.748813/(1 - 0.013873/wvlnt**2) + 0.358461/(1 - 35.0/wvlnt**2))**(1/2)
+    nz = (1.422750 + 0.634640/(1 - 0.013382/wvlnt**2) + 0.170604/(1 - 35.0/wvlnt**2))**(1/2)
+    ny = nx
+    # Return
+    return nx, ny, nz
+
+
+def mat_sellmeier_quartz(wvlnt):
+    """ Principle indices of refraction of alpha quartz vs. wavelength
+
+    This function calculates the three principle indices of refraction for
+    alpha quartz from the Sellmeier equations given in [1].
+
+      [1]: Ghosh, G. Dispersion-equation coefficients for the refractive index
+           and birefringence of calcite and quartz crystals. Opt. Commun. 163,
+           95–102 (1999). Retrieved from
+           http://refractiveindex.info/?shelf=main&book=SiO2&page=Ghosh-o
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :type wvlnt: float
+    :return: (nx, ny, nz)
+    :rtype: (float, float, float)
+    """
+    # Convert wvlnt to microns
+    wvlnt *= 1e6
+    # Calculate the three indices
+    nx = (1.28604141 + (1.07044083 * wvlnt**2)/(wvlnt**2 - 1.00585997e-2)
+          + (1.10202242 * wvlnt**2)/(wvlnt**2 - 100))**(1/2)
+    ny = nx
+    nz = (1.28851804 + (1.09509924 * wvlnt**2)/(wvlnt**2 - 1.02101864e-2)
+          + (1.15662475 * wvlnt**2)/(wvlnt**2 - 100))**(1/2)
+    # Return
+    return nx, ny, nz
+
+
+def mat_sellmeier_fusedsilica(wvlnt):
+    """ The principle indices of refraction for fused silica vs. wavelength
+
+    This function calculates the three principle indices of refraction (all
+    the same) for fused silica from the Sellmeier equations given in [1].
+
+      [1]: Malitson, I. H. Interspecimen Comparison of the Refractive Index of
+           Fused Silica. J. Opt. Soc. Am. 55, 1205 (1965).  Retreived from:
+           http://refractiveindex.info/?shelf=main&book=SiO2&page=Malitson
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :type wvlnt: float
+    :return: (nx, ny, nz)
+    :rtype: (float, float, float)
+    """
+    # Convert lambda0 to microns
+    wvlnt *= 1e6
+    # Calculate the index of refraction
+    n = (1 + (0.6961663 * wvlnt**2)/(wvlnt**2 - 0.0684043**2) +
+             (0.4079426 * wvlnt**2)/(wvlnt**2 - 0.1162414**2) +
+             (0.8974794 * wvlnt**2)/(wvlnt**2 - 9.896161**2))**(1/2)
+    # Return
+    return n, n, n
