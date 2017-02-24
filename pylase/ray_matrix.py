@@ -62,6 +62,19 @@ class NullRM(TranslationRM):
         self.parameters = []
 
 
+class _EmptySystemRM(NullRM):
+    """ A special case of the null matrix used when the optical system is empty
+    """
+    def __init__(self):
+        """ Defines the empty system RayMatrix
+        """
+        super(_EmptySystemRM, self).__init__()
+        self.matrix = np.matrix([[1, 0], [0, 1]], dtype=np.float64)
+        self.dist_internal = 0
+        self.type = "Empty"
+        self.parameters = []
+
+
 class ThinLensRM(RayMatrix):
     """ RayMatrix for a thin lens
     """
@@ -265,7 +278,7 @@ class RayMatrixSystem:
         """
         # Check for Nones
         if ray_matrices is None:
-            self.ray_matrices = [NullRM()]
+            self.ray_matrices = [_EmptySystemRM()]
             self.positions = [0]
         # Check if the objects are iterable
         elif not hasattr(ray_matrices, "__iter__"):
@@ -311,13 +324,17 @@ class RayMatrixSystem:
             2. Calculates the index of refraction at all points in the system
         """
         if self.ray_matrices is not None:
-            # Remove Null matrix if more than 1 matrix
+            # Remove EmptySystemRM matrix if more than 1 matrix
             if len(self.ray_matrices) > 1:
                 null_num = [i for i, v in enumerate(self.ray_matrices) \
-                            if v.type == "Null"]
+                            if v.type == "Empty"]
                 for i in null_num:
                     del self.positions[i]
                     del self.ray_matrices[i]
+            # Add EmptySystemRM matrix if 0 matrices
+            if len(self.ray_matrices) == 0:
+                self.ray_matrices = [_EmptySystemRM()]
+                self.positions = [0]
             # Sort by position
             indices = sorted(range(len(self.positions)),
                              key=lambda x: self.positions[x])

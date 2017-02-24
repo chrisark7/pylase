@@ -47,7 +47,7 @@ class OpticalSystem:
         self.beams = []
         self._beam_hash = 0
         # Initialize the elements list and the elements hash
-        self.elements = [optical_element.NullEL(0, 'null')]
+        self.elements = [optical_element._EmptySystemEL()]
         self._el_hash = 0
         # Initialize the RayMatrixSystem and q parameters
         self._update()
@@ -125,13 +125,14 @@ class OpticalSystem:
         if len(self.elements) > 1:
             try:
                 null_ind = next(i for i, v in enumerate(self.elements) if
-                                type(v) is optical_element.NullEL)
+                                type(v) is optical_element._EmptySystemEL)
                 del self.elements[null_ind]
             except StopIteration:
                 pass
         # Add the null element if there are no elements left
         elif len(self.elements) == 0:
-            self.elements = [optical_element.NullEL(0, 'null')]
+            self.elements = [optical_element._EmptySystemEL()]
+            self.elements = [optical_element._EmptySystemEL()]
         # If the element hash has changed, update elements and beams
         if not hash(tuple(self.elements)) == self._el_hash:
             self.rms = self._calc_ray_matrix_system()
@@ -276,8 +277,8 @@ class OpticalSystem:
         for ind_to in range(0, len(mats)+1):
             # Get composite ray matrix
             if ind_from > ind_to:
-                mat = self.rms.get_matrix(z_from=ind_from,
-                                          z_to=ind_to,
+                mat = self.rms.get_matrix(z_from=ind_to,
+                                          z_to=ind_from,
                                           inverse=True,
                                           pos_num=True)
             else:
@@ -418,6 +419,22 @@ class OpticalSystem:
                                                       roc=roc,
                                                       aoi=aoi,
                                                       orientation=orientation))
+    def add_element_null(self, z, label):
+        """ Adds a null element to the optical system
+
+        Null elements can be useful as place-holders for components in the
+        system which otherwise have no effect.  They will appear as a label
+        on the plots generated from the optical system, but will have no
+        effect on the beam.
+
+        :param z: position along the optical axis
+        :param label: string label for the interface
+        :type z: float
+        :type label: str
+        """
+        # Add the element to the list
+        self._add_element(optical_element.NullEL(z=z,
+                                                 label=label))
 
     ###########################################################################
     # Add Beams
@@ -483,6 +500,28 @@ class OpticalSystem:
     ###########################################################################
     # System Property Calculations
     ###########################################################################
+    def q(self, z, beam_label):
+        """ Calculates the q parameter at a given point in the optical system
+
+        This method calculates the q parameter at any point in the optical
+        system.  The position is specified by `z`, and can be any point along
+        the optical axis.  The `beam_label` parameter identifies which beam to
+        propagate to the specified position.
+
+        :param z: location along the optical axis
+        :param beam_label: the label given to the beam of interest
+        :type z: float
+        :type beam_label: str
+        :return: q parameter at location z
+        :rtype: q_param.qParameter
+        """
+        # Get the position number and distance
+        pos_num, dist = self.rms.get_pos_num_and_distance(z)
+        # Get the q paremeter
+        q = self.all_qs[beam_label][pos_num] + dist
+        # Return
+        return q
+
     def w(self, z, beam_label):
         """ Calculates the 1/e^2 beam radius at position z
 

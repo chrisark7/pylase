@@ -186,6 +186,7 @@ class InterfaceEL(OpticalElement):
         relative_positions = [0]
         super(InterfaceEL, self).__init__(ray_matrices, relative_positions, z, label)
 
+
 class NullEL(OpticalElement):
     """ Crates a null optical element
     """
@@ -203,3 +204,26 @@ class NullEL(OpticalElement):
         ray_matrices = [ray_matrix.NullRM()]
         relative_positions = [0]
         super(NullEL, self).__init__(ray_matrices, relative_positions, z, label)
+
+
+class _EmptySystemEL(OpticalElement):
+    """ Crates an empty system optical element
+
+    This element is used when no other elements are in the optical system
+    """
+    def __init__(self):
+        """ Constructs a null optical element
+
+        The null element acts as a placeholder, and does not alter the optical
+        characteristics of the system.
+
+        :param z: position along the optical axis
+        :param label: string label for the interface
+        :type z: float
+        :type label: str
+        """
+        z = 0
+        label = 'empty'
+        ray_matrices = [ray_matrix._EmptySystemRM()]
+        relative_positions = [0]
+        super(_EmptySystemEL, self).__init__(ray_matrices, relative_positions, z, label)
