@@ -10,6 +10,7 @@ and a Gaussian laser beam.
 """
 
 from bisect import bisect_left
+from copy import deepcopy
 import warnings
 import numpy as np
 from scipy.optimize import minimize
@@ -51,6 +52,19 @@ class OpticalSystem:
         self._el_hash = 0
         # Initialize the RayMatrixSystem and q parameters
         self._update()
+
+    def copy(self):
+        """ Creates a deep copy of the OpticalSystem instance
+
+        This copy of the Optical System instance may have its attributes
+        (elements, beams, positions, etc.) modified without affecting the
+        original OpticalSystem instance since it is a 'deep copy'
+
+        :return: Copy of the OpticalSystem object
+        :rtype: OpticalSystem
+        """
+        return deepcopy(self)
+
 
     ###########################################################################
     # Internal Add/Remove Methods
