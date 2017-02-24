@@ -292,7 +292,7 @@ class OpticalSystem:
         return q_out
 
     ###########################################################################
-    # Add Optical Elements
+    # Add and Adjust Optical Elements
     ###########################################################################
     def add_element_thin_lens(self, z, label, f):
         """ Adds a thin lens with focal length `f` to the list of elements
@@ -435,6 +435,27 @@ class OpticalSystem:
         # Add the element to the list
         self._add_element(optical_element.NullEL(z=z,
                                                  label=label))
+
+    def adjust_element_position(self, z, label):
+        """ Adjusts the position of the optical element specified by `label`
+
+        This method adjusts the position of an optical element.  The new
+        position is given by paramter `z`, and the optical element is
+        specified by `label`.
+
+        :param z: position along the optical axis
+        :param label: string label for the interface
+        :type z: float
+        :type label: str
+        """
+        assert issubclass(type(z), float) or issubclass(type(z), int)
+        # Get element index
+        el_ind = self._get_elindex(el_label=label)
+        # Set new position
+        self.elements[el_ind].position = z
+        # Update system
+        self._el_hash = 0
+        self._update()
 
     ###########################################################################
     # Add Beams
