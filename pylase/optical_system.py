@@ -306,7 +306,7 @@ class OpticalSystem:
         return q_out
 
     ###########################################################################
-    # Add and Adjust Optical Elements
+    # Add, Remove, Modify Optical Elements
     ###########################################################################
     def add_element_thin_lens(self, z, label, f):
         """ Adds a thin lens with focal length `f` to the list of elements
@@ -472,7 +472,7 @@ class OpticalSystem:
         self._update()
 
     ###########################################################################
-    # Add Beams
+    # Add, Remove, Modify Beams
     ###########################################################################
     def add_beam_from_parameters(self, z, label, beam_size, distance_to_waist,
                                  wvlnt):
@@ -531,6 +531,16 @@ class OpticalSystem:
                 raise ValueError("wvlnt should be specified for complex q")
             else:
                 self._add_beam(q_param.Beam(z, label, q=q, wvlnt=wvlnt))
+
+    def remove_beam(self, label):
+        """ Removes a beam from the optical system
+
+        This method removes a beam from the optical system instance.
+
+        :param label: The label identifying the beam to remove
+        :type label: str
+        """
+        self._remove_beam(label=label)
 
     ###########################################################################
     # System Property Calculations
