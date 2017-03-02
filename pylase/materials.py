@@ -98,7 +98,7 @@ def mat_sellmeier_bbo(wvlnt):
 
       [1]: Eimerl, D., Davis, L., Velsko, S., Graham, E. K., & Zalkin, a.
            (1987). Optical, mechanical, and thermal properties of barium
-           borate. Journal of Applied Physics, 62(5), 1968–1983.
+           borate. Journal of Applied Physics, 62(5), 1968-1983.
            doi:10.1063/1.339536.  Retrieved from http://refractiveindex.info/
 
     :param wvlnt: The wavelength of the radiation in meters
@@ -122,9 +122,9 @@ def mat_sellmeier_clbo( wvlnt):
     This function calculates the three principle indices of refraction for
     BBO from the Sellmeier equations given in [1].
 
-      [1]: Eimerl, D., Davis, L., Velsko, S., Graham, E. K., & Zalkin, a.
+      [1]: , D., Davis, L., Velsko, S., Graham, E. K., & Zalkin, a.
            (1987). Optical, mechanical, and thermal properties of barium
-           borate. Journal of Applied Physics, 62(5), 1968–1983.
+           borate. Journal of Applied Physics, 62(5), 1968-1983.
            doi:10.1063/1.339536.  Retrieved from http://refractiveindex.info/
 
     :param wvlnt: The wavelength of the radiation in meters
@@ -150,7 +150,7 @@ def mat_sellmeier_quartz(wvlnt):
 
       [1]: Ghosh, G. Dispersion-equation coefficients for the refractive index
            and birefringence of calcite and quartz crystals. Opt. Commun. 163,
-           95–102 (1999). Retrieved from
+           95-102 (1999). Retrieved from
            http://refractiveindex.info/?shelf=main&book=SiO2&page=Ghosh-o
 
     :param wvlnt: The wavelength of the radiation in meters
@@ -194,6 +194,57 @@ def mat_sellmeier_fusedsilica(wvlnt):
     # Return
     return n, n, n
 
+def mat_sellmeier_caf2(wvlnt, temp):
+    """ The index of refraction of calcium fluoride vs. wavelength and temp
+
+    Calcium Fluoride is an isotropic crystal so, like fused silica, it has the
+    same index of refraction for all 3 crystal axes.  However, to be
+    consistent with the other sellmeier functions in this module, this
+    function returns three values for the index of refraction. The equations
+    for both the index of refraction and dn/dT are taken from [1].
+
+    The base temperature for for the index of refraction is 20 C, and dn/dT is
+    also from data taken at this temperature.  This measured dn/dT is
+    simply multiplied by the temperature difference from the base temperature
+    and summed with the index of refraction at the base temperature.  So,
+    temperatures far from the base temperature have increasing amounts of error
+    because the temperature dependence of dn/dT is not taken into account.
+
+    Note that a small amount of birefringence is often observed in calcium
+    fluoride due to internal stress from thermal gradients during growth of
+    the crystal.  This can cause design problems in highly polarization
+    dependent optical systems, but is not accounted for by this function.
+
+      [1]: H. H. Li. Refractive index of alkaline earth halides and its
+           wavelength and temperature derivatives. J. Phys. Chem. Ref. Data
+           9, 161-289 (1980).  Retrieved from:
+           https://refractiveindex.info/?shelf=main&book=CaF2&page=Li
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :param temp: The temperature in Celcius
+    :type wvlnt: float
+    :type temp: float
+    :return: (n, n, n)
+    :rtype: (float, float, float)
+    """
+    # Base temperature for index measurements
+    base_temp = 20.0
+    # Convert wvlnt to microns
+    wvlnt *= 1e6
+    # Calculate room temperature index of refraction
+    n0 = (1 + 0.33973 + 0.69913/(1 - (0.09374/wvlnt)**2)
+          + 0.11994/(1 - (21.18/wvlnt)**2) + 4.35181/(1 - (38.46/wvlnt)**2))**(1.0/2)
+    # Calculate dn/dT
+    def dndT(wvlnt, n0):
+        return 1/(2*n0) * (-16.6 - 57.3*(n0**2 - 1) +
+               44.9*wvlnt**4/(wvlnt**2 - 0.09374**2)**2 +
+               151.54*wvlnt**2/(wvlnt**2 - 38.46**2) +
+               1654.6*wvlnt**4/(wvlnt**2 - 38.46**2)**2) * 1e-6
+    # Integrate the temperature contribution
+    n = n0 + dndT(wvlnt, n0) * (temp - base_temp)
+    # Return
+    return n, n, n
+
 
 ###############################################################################
 # Common Calculations
@@ -215,7 +266,7 @@ def calc_fresnel_reflectivity(theta, n_init, n_fin):
     :type theta: float
     :type n_init: float
     :type n_fin: float
-    :return: (s reflection coefficient, p reflection coefficient
+    :return: (s reflection coefficient, p reflection coefficient)
     :rtype: (complex, complex)
     """
     # Calculate the transmitted angle from Snell's law
