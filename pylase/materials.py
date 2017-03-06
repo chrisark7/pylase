@@ -116,7 +116,7 @@ def mat_sellmeier_bbo(wvlnt):
     return nx, ny, nz
 
 
-def mat_sellmeier_clbo( wvlnt):
+def mat_sellmeier_clbo(wvlnt):
     """ Principle indices of refraction of CLBO vs. wavelength
 
     This function calculates the three principle indices of refraction for
@@ -136,8 +136,38 @@ def mat_sellmeier_clbo( wvlnt):
     wvlnt *= 1e6
     # Calculate the three indices
     nx = (1.458830 + 0.748813/(1 - 0.013873/wvlnt**2) + 0.358461/(1 - 35.0/wvlnt**2))**(1/2)
-    nz = (1.422750 + 0.634640/(1 - 0.013382/wvlnt**2) + 0.170604/(1 - 35.0/wvlnt**2))**(1/2)
     ny = nx
+    nz = (1.422750 + 0.634640/(1 - 0.013382/wvlnt**2) + 0.170604/(1 - 35.0/wvlnt**2))**(1/2)
+    # Return
+    return nx, ny, nz
+
+
+def mat_sellmeier_mgf2(wvlnt):
+    """ Principle indices of refraction of MgF2 vs. wavelength
+
+    This function calculates the three principle indices of refraction for
+    magnesium fluoride (MgF2) from the Sellmeier equations given in [1].  Note
+    that the measurement of the Sellmeier coefficients were made at 19 C.
+
+      [1]: Dodge, M. J. (1984). Refractive properties of magnesium fluoride.
+           Applied Optics, 23(12), 1980–1985. Retrieved from
+           http://refractiveindex.info/
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :type wvlnt: float
+    :return: (nx, ny, nz)
+    :rtype: (float, float, float)
+    """
+    # Convert wvlnt to microns
+    wvlnt *= 1e6
+    # Calculate the three indices
+    nx = (1 + 0.48755108*wvlnt**2/(wvlnt**2 - 0.04338408)
+            + 0.39875031*wvlnt**2/(wvlnt**2 - 0.09461442)
+            + 2.3120358*wvlnt**2/(wvlnt**2 - 23.793604))**(1/2)
+    ny = nx
+    nz = (1 + 0.41344023*wvlnt**2/(wvlnt**2 - 0.03684262)
+            + 0.50497499*wvlnt**2/(wvlnt**2 - 0.09076162)
+            + 2.4904862*wvlnt**2/(wvlnt**2 - 23.771995))**(1/2)
     # Return
     return nx, ny, nz
 
