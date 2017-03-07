@@ -707,7 +707,6 @@ class OpticalSystem:
         for ws_n, beam_label_n in zip(ws, beam_labels):
             for beam_label in beam_label_n:
                 ln = ax0.plot(zs, [scale * w for w in ws_n[beam_label]], lw=2, label=beam_label)
-                ax0.hold(True)
                 ax0.plot(zs, [-1 * scale * w for w in ws_n[beam_label]], lw=2, color=ln[0].get_color())
         ax0.grid(True)
         ax0.set_xlabel('Position [m]')
@@ -722,7 +721,6 @@ class OpticalSystem:
                 pos, label = el.position, el.label
                 ax0.plot([pos, pos], ylims, color='black', lw=1, ls='--')
                 ax0.text(pos, ylims[1] - 0.03 * dy, label, rotation=-90)
-        ax0.hold(False)
         ax0.set_xlim(xlims)
         ax0.set_ylim(ylims)
         # Return
