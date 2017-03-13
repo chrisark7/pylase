@@ -86,6 +86,7 @@ class ThickLensEL(OpticalElement):
         in a positive lens.  The output curvature, on the other hand, works in
         the opposite way; a negative output curvature will result in a positive
         lens while a positive output curvature will result in a negative lens.
+        A flat interface can be specified by setting `r1` or `r2` to `None`
 
         Note that the position associated with the lens is the position of the
         input surface.  I.E. the position of the input face is `z` while the
@@ -95,15 +96,15 @@ class ThickLensEL(OpticalElement):
 
         :param z: The position of the input face along the optical axis
         :param label: A string label associated with the thick lens
-        :param r1: The input curvature in meters (negative = concave)
-        :param r2: The output curvature in meters (negative = concave)
+        :param r1: The input curvature in meters, negative = concave, None = flat
+        :param r2: The output curvature in meters, negative = concave, None = flat
         :param t: The thickness of the lens in meters
         :param ior_lens: The index of refraction of the lens material
         :param ior_air: The index of refraction of the surrounding medium
         :type z: float
         :type label: str
-        :type r1: float
-        :type r2: float
+        :type r1: float or NoneType
+        :type r2: float or NoneType
         :type t: float
         :type ior_lens: float
         :type ior_air: float
