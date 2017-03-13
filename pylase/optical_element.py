@@ -61,8 +61,6 @@ class ThinLensEL(OpticalElement):
     def __init__(self, z, label, f):
         """ OpticalElement for a thin lens with focal length `f`
 
-        Note that a thick lens can be created from multiple interfaces
-
         :param z: position
         :param label: string label for the element
         :param f: focal length
@@ -73,6 +71,51 @@ class ThinLensEL(OpticalElement):
         ray_matrices = [ray_matrix.ThinLensRM(f)]
         relative_positions = [0]
         super(ThinLensEL, self).__init__(ray_matrices, relative_positions, z, label)
+
+
+class ThickLensEL(OpticalElement):
+    """ Creates an OpticalElement instance for a thick lens
+    """
+    def __init__(self, z, label, r1, r2, t, ior_lens, ior_air=1):
+        """ OpticalElement for a thick lens
+
+        The input and output radii of curvature are specified such that a
+        negative curvature is concave looking along the beam line while a
+        positive curvature is convex.  I.E. a negative input curvature will
+        result in a negative lens while a positive input curvature will result
+        in a positive lens.  The output curvature, on the other hand, works in
+        the opposite way; a negative output curvature will result in a positive
+        lens while a positive output curvature will result in a negative lens.
+
+        Note that the position associated with the lens is the position of the
+        input surface.  I.E. the position of the input face is `z` while the
+        position of the output face is `z+t`.
+
+        All dimensions are in meters.
+
+        :param z: The position of the input face along the optical axis
+        :param label: A string label associated with the thick lens
+        :param r1: The input curvature in meters (negative = concave)
+        :param r2: The output curvature in meters (negative = concave)
+        :param t: The thickness of the lens in meters
+        :param ior_lens: The index of refraction of the lens material
+        :param ior_air: The index of refraction of the surrounding medium
+        :type z: float
+        :type label: str
+        :type r1: float
+        :type r2: float
+        :type t: float
+        :type ior_lens: float
+        :type ior_air: float
+        """
+        ray_matrices = [ray_matrix.InterfaceRM(ior_init=ior_air,
+                                               ior_fin=ior_lens,
+                                               roc=r1),
+                        ray_matrix.InterfaceRM(ior_init=ior_lens,
+                                               ior_fin=ior_air,
+                                               roc=r2)]
+        relative_positions = [0, t]
+        super(ThickLensEL, self).__init__(ray_matrices, relative_positions, z, label)
 
 
 class MirrorEL(OpticalElement):
