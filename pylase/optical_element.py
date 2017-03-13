@@ -90,9 +90,9 @@ class ThickLensEL(OpticalElement):
 
         Note that the position associated with the lens is the position of the
         input surface.  I.E. the position of the input face is `z` while the
-        position of the output face is `z+t`.
-
-        All dimensions are in meters.
+        position of the output face is `z+t`.  The specified thickness of the
+        lens should be the thickness along the optical axis, i.e. the center
+        thickness.
 
         :param z: The position of the input face along the optical axis
         :param label: A string label associated with the thick lens

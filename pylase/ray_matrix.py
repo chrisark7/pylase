@@ -224,12 +224,24 @@ class InterfaceRM(RayMatrix):
         :type orientation: str
         """
         super(InterfaceRM, self).__init__()
-        if roc is None:
+        if (roc is None) and (aoi is None):
             self.matrix = np.matrix([[1, 0], [0, ior_init/ior_fin]],
                                     dtype=np.float64)
         elif aoi is None:
             self.matrix = np.matrix([[1, 0], [(ior_init - ior_fin)/(roc * ior_fin), ior_init/ior_fin]],
                                     dtype=np.float64)
+        elif roc is None:
+            if orientation == 'sagittal':
+                self.matrix = np.matrix([[1, 0],
+                                         [0, ior_init/ior_fin]],
+                                        dtype=np.float64)
+            elif orientation == 'tangential':
+                th2 = np.arcsin(ior_init/ior_fin * np.sin(aoi))
+                self.matrix = np.matrix([[np.cos(th2)/np.cos(aoi), 0],
+                                         [0, ior_init * np.cos(aoi)/(ior_fin * np.cos(th2))]],
+                                        dtype=np.float64)
+            else:
+                raise ValueError("orientation should be either \'sagittal\' or \'tangential\'")
         else:
             nr = ior_fin/ior_init
             if orientation == 'sagittal':
