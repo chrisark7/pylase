@@ -65,6 +65,22 @@ class OpticalSystem:
         """
         return deepcopy(self)
 
+    def summary(self, return_string=False):
+        """ Generates a system summary and prints or returns the string
+
+        If `return_string` evaluates to False, then the system summary is
+        printed to the screen.  Otherwise, it is returned to the user.
+
+        :param return_string: Prints to screen if False, returns if True
+        :type return_string: bool
+        :return: Returns the summary string if `return_string` is True else None
+        :rtype: str or NoneType
+        """
+        if return_string:
+            return self.rms.print_summary(return_string=return_string)
+        else:
+            self.rms.print_summary(return_string=return_string)
+
 
     ###########################################################################
     # Internal Add/Remove Methods
@@ -568,7 +584,7 @@ class OpticalSystem:
         :type wvlnt: float
         """
         if type(q) is q_param.qParameter:
-            self._add_beam(q_param.Beam(z, label, q=q))
+            self._add_beam(q_param.Beam(z, label, q=q, wvlnt=None))
         elif type(q) is complex:
             if wvlnt is None:
                 raise ValueError("wvlnt should be specified for complex q")

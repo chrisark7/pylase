@@ -429,7 +429,7 @@ class Beam(qParameter):
         :type z: float
         :type label: str
         :type q: complex or qParameter
-        :type wvlnt: float
+        :type wvlnt: float or None
         :return: An instance of the Beam class
         :rtype: Beam
         """
@@ -446,7 +446,7 @@ class Beam(qParameter):
         self.label = label
 
     def __repr__(self):
-        """ Defines thre representation of the Beam instance
+        """ Defines the representation of the Beam instance
         """
         out = "{0}: {1} @ {2:0.2g}, wvlnt={3:0.3g}".format(self.label,
                                                            super(Beam, self).__repr__(),

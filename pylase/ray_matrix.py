@@ -395,7 +395,7 @@ class RayMatrixSystem:
         :rtype: str
         """
         # Labels
-        col_labels = ["#", "Element", "Parameters", "z", "IOR"]
+        col_labels = ["#", "Matrix", "Parameters", "z", "IOR"]
         # Determine lengths
         col_len = [len(str(len(self.positions)))]
         col_len.append(max(len(x.type) for x in self.ray_matrices))
