@@ -513,7 +513,7 @@ class OpticalSystem:
         """ Adjusts the position of the optical element specified by `label`
 
         This method adjusts the position of an optical element.  The new
-        position is given by paramter `z`, and the optical element is
+        position is given by parameter `z`, and the optical element is
         specified by `label`.
 
         :param z: position along the optical axis
@@ -529,6 +529,27 @@ class OpticalSystem:
         # Update system
         self._el_hash = 0
         self._update()
+
+    def remove_element(self, label):
+        """ Removes an optical element from the system
+
+        This method removes an optical element from the optical system.  The
+        element is specified by its string label.
+
+        :param label: the string label of the element to be removed
+        :type label: str
+        """
+        self._remove_element(label=label)
+
+    def get_element(self, label):
+        """ Returns the element specified by `label`
+
+        :param label: string label for the OpticalElement
+        :type label: str
+        :return: The OpticalElement instance associated with `label`
+        :rtype: optical_element.OpticalElement
+        """
+        return self.elements[self._get_elindex(el_label=label)]
 
     ###########################################################################
     # Add, Remove, Modify Beams
