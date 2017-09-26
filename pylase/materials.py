@@ -275,6 +275,33 @@ def mat_sellmeier_caf2(wvlnt, temp):
     # Return
     return n, n, n
 
+def mat_sellmeier_ktp(wvlnt):
+    """ The principle indices of refraction for KTP vs. wavelength
+
+    Calculates the principle indices of refraction for Potassium Titanyl
+    Phosphate (KTP) from the equations given in [1].
+
+      [1]: K. Kato and E. Takaoka. Sellmeier and thermo-optic dispersion
+           formulas for KTP, Appl. Opt. 41, 5040-5044 (2002).  Retrieved from:
+           https://refractiveindex.info/?shelf=main&book=KTiOPO4&page=Kato-%CE%B1
+
+    :param wvlnt: The wavelength of the radiation in meters
+    :type wvlnt: float
+    :return: (nx, ny, nz)
+    :rtype: (float, float, float)
+    """
+    # Convert lambda to microns
+    wvlnt = wvlnt * 1e6
+    # Calculate the principle indices of refraction
+    nx = (3.29100 + 0.04140/(wvlnt**2 - 0.03978) +
+          9.35522/(wvlnt**2 - 31.45571))**(1/2)
+    ny = (3.45018 + 0.04341/(wvlnt**2 - 0.04597) +
+          16.98825/(wvlnt**2 - 39.43799))**(1/2)
+    nz = (4.59423 + 0.06206/(wvlnt**2 - 0.04763) +
+          110.80672/(wvlnt**2 - 86.12171))**(1/2)
+    return nx, ny, nz
+
+
 
 ###############################################################################
 # Common Calculations
