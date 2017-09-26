@@ -685,7 +685,8 @@ class OpticalSystem:
         :param data: The data to which the beam will be fit
         :type guess_beam_label: str
         :type data: list of list of float
-        :return:
+        :return: The q parameter of the best fit
+        :rtype: q_param.qParameter
         """
         # Check format of data
         try:

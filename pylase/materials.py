@@ -107,11 +107,11 @@ def mat_sellmeier_bbo(wvlnt):
     :rtype: (float, float, float)
     """
     # Convert wvlnt to microns
-    wvlnt *= 1e6
+    wvlnt = wvlnt*1e6
     # Calculate the three indices
-    nx = (2.3753 + 0.01224/(wvlnt**2 - 0.01667) - 0.01516 * wvlnt**2)**(1/2)
+    nx = (2.3730 + 0.0128/(wvlnt**2 - 0.0156) - 0.0044 * wvlnt**2)**(1/2)
     ny = nx
-    nz = (2.7359 - 0.01878/(wvlnt**2 - 0.01822) - 0.01354 * wvlnt**2)**(1/2)
+    nz = (2.7405 + 0.0184/(wvlnt**2 - 0.0179) - 0.0155 * wvlnt**2)**(1/2)
     # Return
     return nx, ny, nz
 
