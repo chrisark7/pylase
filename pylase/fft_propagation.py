@@ -1,5 +1,7 @@
 __author__ = 'cmueller'
 
+#Todo: Get rid of "GaussianBeams" import call which is a predecessor to pylase and no longer exists
+
 import scipy.fftpack as spfft
 import scipy.misc
 import scipy.special

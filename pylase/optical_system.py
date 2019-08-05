@@ -3,8 +3,8 @@
 The Gaussian beam q parameter, encapsulated in the qParameter class, completely
 defines a Gaussian laser beam in the paraxial limit.  Similarly, a system of
 geometrical optical ray matrices, encapsulated in the RayMatrix class,
-completely defines a series of optical system in the paraxial limit.  This
-package brings the two of those together to allow the user to calculate
+completely defines a series of on-axis optical elements in the paraxial limit.
+This module brings the two of those together to allow the user to calculate
 the properties of an optical system consisting of a number of optical elements
 and a Gaussian laser beam.
 """
